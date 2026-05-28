@@ -32,6 +32,21 @@ whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
 | `-o, --output FILE` | `sbom_<timestamp>.cdx.json` | Output file path. |
 | `-v, --verbose` | off | Enable debug-level logging to stderr. |
 
+### Product metadata (BSI TR-03183)
+
+To produce a BSI TR-03183 compliant SBOM, supply at minimum `--product-name` and `--product-purl`.
+All options are optional; omitting them falls back to an OS-based `metadata.component`.
+
+| Option | Description |
+|---|---|
+| `--product-name NAME` | Name of the product or firmware image being described. |
+| `--product-version VERSION` | Version of the product. |
+| `--product-type TYPE` | CycloneDX component type (e.g. `firmware`, `application`, `container`, `device`). Default: `firmware`. |
+| `--product-supplier NAME` | Supplier / vendor name. |
+| `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
+| `--product-purl PURL` | Package-URL that uniquely identifies the product, e.g. `pkg:generic/acme/fw@1.0`. When set, the product is also added as the root node of the dependency tree. |
+| `--author 'Name <email>'` | SBOM author. May be given multiple times. Populates `metadata.authors`. |
+
 ### Systems
 
 #### `dpkg`
@@ -82,6 +97,20 @@ Verbose output to follow the pipeline:
 
 ```bash
 whatever2sbom -v
+```
+
+BSI TR-03183 compliant SBOM for a firmware image:
+
+```bash
+whatever2sbom \
+  --product-name "AcmeFW" \
+  --product-version "2.4.1" \
+  --product-type firmware \
+  --product-supplier "Acme GmbH" \
+  --product-supplier-url "https://acme.example.com" \
+  --product-purl "pkg:generic/acme/acmefw@2.4.1" \
+  --author "Jane Doe <jane@acme.example.com>" \
+  -o acmefw.cdx.json
 ```
 
 ## Output

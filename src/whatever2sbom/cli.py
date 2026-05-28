@@ -72,6 +72,54 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Enable debug-level logging",
     )
 
+    # ── product metadata (BSI TR-03183) ──────────────────────────────────────
+    prod = p.add_argument_group(
+        "product metadata",
+        "Describe the product/firmware being scanned (required for BSI TR-03183 compliance).",
+    )
+    prod.add_argument(
+        "--product-name",
+        metavar="NAME",
+        help="Name of the product or firmware image being described",
+    )
+    prod.add_argument(
+        "--product-version",
+        metavar="VERSION",
+        help="Version of the product",
+    )
+    prod.add_argument(
+        "--product-type",
+        metavar="TYPE",
+        default="firmware",
+        help=(
+            "CycloneDX component type for the product "
+            "(firmware | application | container | device | …)  (default: firmware)"
+        ),
+    )
+    prod.add_argument(
+        "--product-supplier",
+        metavar="NAME",
+        help="Supplier / vendor name",
+    )
+    prod.add_argument(
+        "--product-supplier-url",
+        metavar="URL",
+        action="append",
+        dest="product_supplier_url",
+        help="Supplier URL (may be given multiple times)",
+    )
+    prod.add_argument(
+        "--product-purl",
+        metavar="PURL",
+        help="Package-URL that uniquely identifies the product (e.g. pkg:generic/acme/fw@1.0)",
+    )
+    prod.add_argument(
+        "--author",
+        metavar="'Name <email>'",
+        action="append",
+        help="SBOM author in 'Name <email>' format (may be given multiple times)",
+    )
+
     # ── system-specific option groups ─────────────────────────────────────────
     # Each registered SystemPlugin declares its own arguments here, so the CLI
     # stays clean when new systems are added.
@@ -104,6 +152,13 @@ def main(argv: list[str] | None = None) -> None:
             args.schema,
             args.spec_version,
             distro=getattr(args, "distro", None),
+            product_name=args.product_name,
+            product_version=args.product_version,
+            product_type=args.product_type,
+            product_supplier=args.product_supplier,
+            product_supplier_url=args.product_supplier_url or [],
+            product_purl=args.product_purl,
+            authors=args.author or [],
         )
         validator = registry.get_validator(args.schema, args.spec_version)
     except ValueError as exc:

@@ -1,13 +1,3 @@
-"""
-CycloneDX 1.6 JSON formatter.
-
-Improvements over the original script:
-- Architecture qualifiers stripped from dep names  (libc6:amd64 → libc6)
-- Alternative deps resolved to first installed package  (a | b | c)
-- Virtual packages resolved via the Provides field
-- License info from enriched PackageRecord.licenses
-"""
-
 import re
 import uuid
 from datetime import datetime, timezone
@@ -180,8 +170,25 @@ class CycloneDXFormatter(Formatter):
     output_extension = "cdx.json"
     name             = f"{schema_name}-{spec_version}"
 
-    def __init__(self, distro: str | None = None) -> None:
-        self._distro = distro
+    def __init__(
+        self,
+        distro: str | None = None,
+        product_name: str | None = None,
+        product_version: str | None = None,
+        product_type: str = "firmware",
+        product_supplier: str | None = None,
+        product_supplier_url: list[str] | None = None,
+        product_purl: str | None = None,
+        authors: list[str] | None = None,
+    ) -> None:
+        self._distro              = distro
+        self._product_name        = product_name
+        self._product_version     = product_version
+        self._product_type        = product_type
+        self._product_supplier    = product_supplier
+        self._product_supplier_url = product_supplier_url or []
+        self._product_purl        = product_purl
+        self._authors             = authors or []
 
     def format(self, packages: list[PackageRecord]) -> dict:
         os_info = get_os_info()
@@ -196,6 +203,11 @@ class CycloneDXFormatter(Formatter):
         components = [self._build_component(pkg, distro) for pkg in packages]
         dependencies = self._build_dependencies(packages, name_to_ref, provides_map)
         metadata = self._build_metadata(os_info, distro, components)
+
+        # When a product is defined it becomes the root of the dependency tree.
+        if self._product_purl:
+            pkg_refs = [_build_purl(p, distro) for p in packages]
+            dependencies.insert(0, {"ref": self._product_purl, "dependsOn": pkg_refs})
 
         return {
             "bomFormat":    "CycloneDX",
@@ -269,24 +281,11 @@ class CycloneDXFormatter(Formatter):
     def _build_metadata(
         self, os_info: dict[str, str], distro: str, components: list[dict]
     ) -> dict:
-        os_component: dict = {
-            "type":    "operating-system",
-            "bom-ref": "os-component",
-            "name":    os_info.get("id", distro),
-            "version": os_info.get("version_id", ""),
-        }
-        if os_info.get("pretty_name"):
-            os_component["description"] = os_info["pretty_name"]
-        if os_info.get("home_url"):
-            os_component["externalReferences"] = [
-                {"type": "website", "url": os_info["home_url"]}
-            ]
-
-        hash_coverage = sum(1 for c in components if c.get("hashes"))
+        hash_coverage    = sum(1 for c in components if c.get("hashes"))
         license_coverage = sum(1 for c in components if c.get("licenses"))
         total = len(components)
 
-        return {
+        metadata: dict = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "tools": {
                 "components": [{
@@ -295,12 +294,64 @@ class CycloneDXFormatter(Formatter):
                     "version": whatever2sbom.__version__,
                 }]
             },
-            "component": os_component,
+            "component": self._build_metadata_component(os_info, distro),
             "properties": [
-                {"name": "sbom:total-components",    "value": str(total)},
-                {"name": "sbom:hash-coverage",       "value": str(hash_coverage)},
-                {"name": "sbom:hash-coverage-pct",   "value": f"{hash_coverage / total * 100:.1f}%" if total else "0%"},
-                {"name": "sbom:license-coverage",    "value": str(license_coverage)},
-                {"name": "sbom:license-coverage-pct","value": f"{license_coverage / total * 100:.1f}%" if total else "0%"},
+                {"name": "sbom:total-components",     "value": str(total)},
+                {"name": "sbom:hash-coverage",        "value": str(hash_coverage)},
+                {"name": "sbom:hash-coverage-pct",    "value": f"{hash_coverage / total * 100:.1f}%" if total else "0%"},
+                {"name": "sbom:license-coverage",     "value": str(license_coverage)},
+                {"name": "sbom:license-coverage-pct", "value": f"{license_coverage / total * 100:.1f}%" if total else "0%"},
             ],
         }
+
+        authors = self._build_authors()
+        if authors:
+            metadata["authors"] = authors
+
+        return metadata
+
+    def _build_metadata_component(self, os_info: dict[str, str], distro: str) -> dict:
+        """Return the metadata.component — product if specified, else OS fallback."""
+        if self._product_name:
+            comp: dict = {
+                "type":    self._product_type,
+                "bom-ref": self._product_purl or f"product:{self._product_name}",
+                "name":    self._product_name,
+            }
+            if self._product_version:
+                comp["version"] = self._product_version
+            if self._product_purl:
+                comp["purl"] = self._product_purl
+            if self._product_supplier:
+                supplier: dict = {"name": self._product_supplier}
+                if self._product_supplier_url:
+                    supplier["url"] = self._product_supplier_url
+                comp["supplier"] = supplier
+            return comp
+
+        # Fallback: describe the OS that was scanned
+        os_comp: dict = {
+            "type":    "operating-system",
+            "bom-ref": "os-component",
+            "name":    os_info.get("id", distro),
+        }
+        if os_info.get("version_id"):
+            os_comp["version"] = os_info["version_id"]
+        if os_info.get("pretty_name"):
+            os_comp["description"] = os_info["pretty_name"]
+        if os_info.get("home_url"):
+            os_comp["externalReferences"] = [
+                {"type": "website", "url": os_info["home_url"]}
+            ]
+        return os_comp
+
+    def _build_authors(self) -> list[dict]:
+        """Parse --author 'Name <email>' strings into CycloneDX author objects."""
+        result: list[dict] = []
+        for entry in self._authors:
+            m = re.match(r"^(.*?)\s*<([^>]+)>", entry.strip())
+            if m:
+                result.append({"name": m.group(1).strip(), "email": m.group(2).strip()})
+            else:
+                result.append({"name": entry.strip()})
+        return result
