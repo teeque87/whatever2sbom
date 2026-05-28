@@ -99,7 +99,8 @@ def _build_parser() -> argparse.ArgumentParser:
     prod.add_argument(
         "--product-supplier",
         metavar="NAME",
-        help="Supplier / vendor name",
+        required=True,
+        help="Supplier / vendor name (required — NTIA Supplier Name)",
     )
     prod.add_argument(
         "--product-supplier-url",

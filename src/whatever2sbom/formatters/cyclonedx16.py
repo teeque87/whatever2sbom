@@ -77,7 +77,7 @@ def _resolve_deps(
 # ── component field builders ──────────────────────────────────────────────────
 
 def _build_purl(pkg: PackageRecord, distro: str, codename: str | None = None) -> str:
-    # Percent-encode the version; keep . - : ~ unencoded (unreserved / spec examples).
+    # Percent-encode the version; keep . - : ~ unencoded per PURL spec examples.
     version = _urlquote(pkg.version, safe=".-:~")
     purl = f"pkg:deb/{distro}/{pkg.name}@{version}"
     qualifiers: list[str] = []
@@ -213,10 +213,10 @@ class CycloneDXFormatter(Formatter):
         dependencies = self._build_dependencies(packages, name_to_ref, provides_map)
         metadata     = self._build_metadata(os_info, distro, components)
 
-        # When a product is defined it becomes the root of the dependency tree.
-        if self._product_purl:
-            pkg_refs = [_build_purl(p, distro, codename) for p in packages]
-            dependencies.insert(0, {"ref": self._product_purl, "dependsOn": pkg_refs})
+        # metadata.component is always the single root of the dependency tree.
+        root_ref = self._root_bom_ref()
+        pkg_refs = [_build_purl(p, distro, codename) for p in packages]
+        dependencies.insert(0, {"ref": root_ref, "dependsOn": pkg_refs})
 
         return {
             "bomFormat":    "CycloneDX",
@@ -229,6 +229,14 @@ class CycloneDXFormatter(Formatter):
         }
 
     # ── private helpers ───────────────────────────────────────────────────────
+
+    def _root_bom_ref(self) -> str:
+        """bom-ref of metadata.component — used as the single root of the dep tree."""
+        if self._product_purl:
+            return self._product_purl
+        if self._product_name:
+            return f"product:{self._product_name}"
+        return "os-component"
 
     def _build_component(self, pkg: PackageRecord, distro: str, codename: str | None = None) -> dict:
         bom_ref = _build_purl(pkg, distro, codename)
@@ -312,6 +320,11 @@ class CycloneDXFormatter(Formatter):
                 {"name": "sbom:license-coverage-pct", "value": f"{license_coverage / total * 100:.1f}%" if total else "0%"},
             ],
         }
+
+        supplier: dict = {"name": self._product_supplier}
+        if self._product_supplier_url:
+            supplier["url"] = self._product_supplier_url
+        metadata["supplier"] = supplier
 
         authors = self._build_authors()
         if authors:

@@ -42,7 +42,7 @@ All options are optional; omitting them falls back to an OS-based `metadata.comp
 | `--product-name NAME` | Name of the product or firmware image being described. |
 | `--product-version VERSION` | Version of the product. |
 | `--product-type TYPE` | CycloneDX component type (e.g. `firmware`, `application`, `container`, `device`). Default: `firmware`. |
-| `--product-supplier NAME` | Supplier / vendor name. |
+| `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). |
 | `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
 | `--product-purl PURL` | Package-URL that uniquely identifies the product, e.g. `pkg:generic/acme/fw@1.0`. When set, the product is also added as the root node of the dependency tree. |
 | `--author 'Name <email>'` | SBOM author. May be given multiple times. Populates `metadata.authors`. |
