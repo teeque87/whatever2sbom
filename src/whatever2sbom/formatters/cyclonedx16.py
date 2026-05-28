@@ -75,10 +75,15 @@ def _resolve_deps(
 
 # ── component field builders ──────────────────────────────────────────────────
 
-def _build_purl(pkg: PackageRecord, distro: str) -> str:
+def _build_purl(pkg: PackageRecord, distro: str, codename: str | None = None) -> str:
     purl = f"pkg:deb/{distro}/{pkg.name}@{pkg.version}"
+    qualifiers: list[str] = []
     if pkg.architecture and pkg.architecture != "all":
-        purl += f"?arch={pkg.architecture}"
+        qualifiers.append(f"arch={pkg.architecture}")
+    if codename:
+        qualifiers.append(f"distro={codename}")
+    if qualifiers:
+        purl += "?" + "&".join(qualifiers)
     return purl
 
 
@@ -191,22 +196,23 @@ class CycloneDXFormatter(Formatter):
         self._authors             = authors or []
 
     def format(self, packages: list[PackageRecord]) -> dict:
-        os_info = get_os_info()
-        distro = self._distro or os_info.get("id", "debian")
+        os_info  = get_os_info()
+        distro   = self._distro or os_info.get("id", "debian")
+        codename = os_info.get("version_codename") or None
 
         name_to_ref: dict[str, str] = {
-            pkg.name: _build_purl(pkg, distro)
+            pkg.name: _build_purl(pkg, distro, codename)
             for pkg in packages
         }
         provides_map = _build_provides_map(packages, name_to_ref)
 
-        components = [self._build_component(pkg, distro) for pkg in packages]
+        components   = [self._build_component(pkg, distro, codename) for pkg in packages]
         dependencies = self._build_dependencies(packages, name_to_ref, provides_map)
-        metadata = self._build_metadata(os_info, distro, components)
+        metadata     = self._build_metadata(os_info, distro, components)
 
         # When a product is defined it becomes the root of the dependency tree.
         if self._product_purl:
-            pkg_refs = [_build_purl(p, distro) for p in packages]
+            pkg_refs = [_build_purl(p, distro, codename) for p in packages]
             dependencies.insert(0, {"ref": self._product_purl, "dependsOn": pkg_refs})
 
         return {
@@ -221,8 +227,8 @@ class CycloneDXFormatter(Formatter):
 
     # ── private helpers ───────────────────────────────────────────────────────
 
-    def _build_component(self, pkg: PackageRecord, distro: str) -> dict:
-        bom_ref = _build_purl(pkg, distro)
+    def _build_component(self, pkg: PackageRecord, distro: str, codename: str | None = None) -> dict:
+        bom_ref = _build_purl(pkg, distro, codename)
         component: dict = {
             "type":    _map_type(pkg),
             "bom-ref": bom_ref,
