@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import quote as _urlquote
 
 import whatever2sbom
 from whatever2sbom._os import get_os_info
@@ -76,7 +77,9 @@ def _resolve_deps(
 # ── component field builders ──────────────────────────────────────────────────
 
 def _build_purl(pkg: PackageRecord, distro: str, codename: str | None = None) -> str:
-    purl = f"pkg:deb/{distro}/{pkg.name}@{pkg.version}"
+    # Percent-encode the version; keep . - : ~ unencoded (unreserved / spec examples).
+    version = _urlquote(pkg.version, safe=".-:~")
+    purl = f"pkg:deb/{distro}/{pkg.name}@{version}"
     qualifiers: list[str] = []
     if pkg.architecture and pkg.architecture != "all":
         qualifiers.append(f"arch={pkg.architecture}")
