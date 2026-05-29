@@ -215,3 +215,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Go binaries / build artifacts
+/whatever2sbom
+/whatever2sbom.exe
+/bin/
+/dist/
+
+# Generated SBOMs
+*.cdx.json
+
+# Test coverage
+coverage.out
