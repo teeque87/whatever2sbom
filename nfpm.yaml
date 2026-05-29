@@ -1,0 +1,46 @@
+# nfpm configuration — produces a .deb (and optionally .rpm / .apk) for
+# whatever2sbom. Driven by `make deb` / `make deb-all`.
+#
+# VERSION and ARCH are read from the environment; the Makefile sets both
+# before invoking nfpm. Override at the command line for one-off builds:
+#   VERSION=0.2.0 ARCH=amd64 nfpm pkg --packager deb -f nfpm.yaml -t out.deb
+
+name:        whatever2sbom
+arch:        ${ARCH}
+platform:    linux
+version:     ${VERSION}
+section:     utils
+priority:    optional
+maintainer:  Michael H. <teeque87@gmail.com>
+description: |
+  Generate a validated CycloneDX 1.6 SBOM from a Debian/Ubuntu system.
+  Walks the dpkg database, enriches with apt-cache, extracts licenses
+  from /usr/share/doc/<pkg>/copyright, and validates against an
+  embedded JSON schema before writing output to disk.
+vendor:      teeque87
+homepage:    https://github.com/teeque87/whatever2sbom
+license:     MIT
+
+# Runtime dependencies. Both are always present on Debian/Ubuntu — listed
+# so dpkg refuses to install on something that's truly missing them.
+depends:
+  - dpkg
+  - apt
+
+# Files to bundle. The binary lands in /usr/bin so it is on PATH for every
+# user without any further configuration.
+contents:
+  - src: ./whatever2sbom
+    dst: /usr/bin/whatever2sbom
+    file_info:
+      mode: 0755
+      owner: root
+      group: root
+  - src: ./LICENSE
+    dst: /usr/share/doc/whatever2sbom/copyright
+    file_info:
+      mode: 0644
+  - src: ./README.md
+    dst: /usr/share/doc/whatever2sbom/README.md
+    file_info:
+      mode: 0644

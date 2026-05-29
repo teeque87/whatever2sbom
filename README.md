@@ -69,23 +69,60 @@ Name conformance) and you have a complete, schema-validated SBOM.
 
 ## Installation
 
-### Pre-built binary (recommended for end users)
+### Debian / Ubuntu (`.deb` package)
 
-Download the binary for your platform from the [releases page] and drop it
-anywhere on your `PATH`.
+The most ergonomic install on Ubuntu 22.04, 24.04, 26.04 and Debian 12+:
 
-[releases page]: https://example.invalid/releases
+```bash
+# Build it on the target system (one-time, ~30 seconds)
+git clone https://github.com/teeque87/whatever2sbom.git
+cd whatever2sbom && git checkout go-port
+make deb
 
-### Build from source
+# Install
+sudo dpkg -i dist/whatever2sbom_*.deb
+
+# Run from anywhere
+whatever2sbom --product-supplier "Acme GmbH"
+
+# Uninstall when you're done
+sudo apt remove whatever2sbom
+```
+
+The package drops the binary at `/usr/bin/whatever2sbom` and registers it
+with `dpkg`, so `apt remove` cleans up cleanly. License and README land at
+`/usr/share/doc/whatever2sbom/`.
+
+> Building the `.deb` itself uses [nfpm], which the Makefile auto-downloads
+> into `./bin/` on first run. No `dh-make`, no `debhelper` boilerplate.
+
+[nfpm]: https://github.com/goreleaser/nfpm
+
+### Cross-architecture (`amd64` + `arm64`)
+
+```bash
+make deb-all       # both .deb files land in ./dist/
+ls dist/
+# whatever2sbom_0.1.0_amd64.deb
+# whatever2sbom_0.1.0_arm64.deb
+```
+
+The single static binary works on all modern Debian-family releases — no
+need for per-Ubuntu-version builds.
+
+### Build from source (no package)
 
 You'll need Go **1.22 or newer**.
 
 ```bash
-cd whatever2sbom
-go build -o whatever2sbom ./cmd/whatever2sbom
+git clone https://github.com/teeque87/whatever2sbom.git
+cd whatever2sbom && git checkout go-port
+make build
+sudo install -m 0755 whatever2sbom /usr/local/bin/   # optional
 ```
 
-For a stripped, optimized production binary (`~4 MB` on linux/amd64):
+For a stripped, optimized production binary (`~4 MB` on linux/amd64), use
+the equivalent raw `go build`:
 
 ```bash
 CGO_ENABLED=0 go build \
@@ -269,8 +306,11 @@ system spend during the actual run.
 
 These are estimates extrapolated from the micro-benchmarks plus typical
 subprocess + I/O costs. Wire your own numbers in by running `make bench-e2e`
-on a real Debian/Ubuntu box — [hyperfine] is auto-downloaded into `./bin/`
-on first use.
+on a real Debian/Ubuntu box — install [hyperfine] first:
+
+```bash
+sudo apt install hyperfine    # Ubuntu 24.04+ / Debian 12+
+```
 
 |  | Python | Go |
 |---|---|---|
@@ -373,7 +413,9 @@ make            # show available targets
 make build      # stripped, static binary
 make test       # all unit tests
 make bench      # micro-benchmarks for hot paths
-make bench-e2e  # end-to-end on a real dpkg system (auto-downloads hyperfine)
+make bench-e2e  # end-to-end on a real dpkg system (needs hyperfine)
+make deb        # build a .deb for the host architecture
+make deb-all    # build .deb for amd64 + arm64
 make lint       # go vet + gofmt check
 make fmt        # apply gofmt
 make clean      # remove build artifacts and generated SBOMs

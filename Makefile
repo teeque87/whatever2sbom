@@ -9,22 +9,23 @@ PKG     := ./cmd/whatever2sbom
 VERSION := $(shell git describe --tags --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.toolVersion=$(VERSION)
 
-# Hyperfine for end-to-end benchmarking — auto-downloaded into ./bin so we
-# never need sudo or a system package install. Bumped intentionally; pin a
-# version so the download is reproducible.
-HYPERFINE_VERSION := 1.18.0
-HYPERFINE_BIN     := ./bin/hyperfine
+# Debian package version. Must be a strict semver (no leading "v", no "+").
+# Override at the command line for releases:
+#   make deb DEB_VERSION=0.2.0
+DEB_VERSION ?= 0.1.0
 
 UNAME_S := $(shell uname -s 2>/dev/null)
 UNAME_M := $(shell uname -m 2>/dev/null)
+
+# nfpm — Go-native multi-format packager (.deb / .rpm / .apk).
+# Not in any apt repo, only distributed via GitHub releases, so we
+# auto-download a pinned version into ./bin/ on first use.
+NFPM_VERSION := 2.41.0
+NFPM_BIN     := ./bin/nfpm
 ifeq ($(UNAME_S)/$(UNAME_M),Linux/x86_64)
-    HYPERFINE_ASSET := hyperfine-v$(HYPERFINE_VERSION)-x86_64-unknown-linux-musl
+    NFPM_ASSET := nfpm_$(NFPM_VERSION)_Linux_x86_64.tar.gz
 else ifeq ($(UNAME_S)/$(UNAME_M),Linux/aarch64)
-    HYPERFINE_ASSET := hyperfine-v$(HYPERFINE_VERSION)-aarch64-unknown-linux-gnu
-else ifeq ($(UNAME_S)/$(UNAME_M),Darwin/x86_64)
-    HYPERFINE_ASSET := hyperfine-v$(HYPERFINE_VERSION)-x86_64-apple-darwin
-else ifeq ($(UNAME_S)/$(UNAME_M),Darwin/arm64)
-    HYPERFINE_ASSET := hyperfine-v$(HYPERFINE_VERSION)-aarch64-apple-darwin
+    NFPM_ASSET := nfpm_$(NFPM_VERSION)_Linux_arm64.tar.gz
 endif
 
 .PHONY: help
@@ -54,26 +55,17 @@ bench: ## Run Go micro-benchmarks for hot paths (any OS)
 	go test -bench=. -benchmem -run=^$$ ./...
 
 .PHONY: bench-e2e
-bench-e2e: build $(HYPERFINE_BIN) ## End-to-end benchmark on a real dpkg system (auto-downloads hyperfine)
-	$(HYPERFINE_BIN) --warmup 1 --runs 5 \
+bench-e2e: build ## End-to-end benchmark on a real dpkg system (needs hyperfine)
+	@command -v hyperfine >/dev/null || { \
+		echo "hyperfine not found."; \
+		echo "  Ubuntu 24.04+ / Debian 12+: sudo apt install hyperfine"; \
+		echo "  Older systems:              cargo install hyperfine"; \
+		exit 1; \
+	}
+	hyperfine --warmup 1 --runs 5 \
 		'./$(BINARY) --product-supplier bench --no-licenses --no-apt-cache -o /tmp/bench-min.cdx.json' \
 		'./$(BINARY) --product-supplier bench --no-licenses -o /tmp/bench-no-lic.cdx.json' \
 		'./$(BINARY) --product-supplier bench -o /tmp/bench-full.cdx.json'
-
-# Auto-download hyperfine into ./bin/ on first use. Skips if already present.
-$(HYPERFINE_BIN):
-	@if [ -z "$(HYPERFINE_ASSET)" ]; then \
-		echo "unsupported platform $(UNAME_S)/$(UNAME_M); install hyperfine manually and re-run"; \
-		exit 1; \
-	fi
-	@mkdir -p bin
-	@echo "Downloading hyperfine v$(HYPERFINE_VERSION) ($(HYPERFINE_ASSET))"
-	@curl -fsSL -o /tmp/hyperfine.tar.gz \
-		https://github.com/sharkdp/hyperfine/releases/download/v$(HYPERFINE_VERSION)/$(HYPERFINE_ASSET).tar.gz
-	@tar -xzf /tmp/hyperfine.tar.gz -C bin --strip-components=1 $(HYPERFINE_ASSET)/hyperfine
-	@rm -f /tmp/hyperfine.tar.gz
-	@chmod +x $(HYPERFINE_BIN)
-	@echo "hyperfine ready at $(HYPERFINE_BIN)"
 
 .PHONY: lint
 lint: ## go vet + gofmt check
@@ -106,3 +98,54 @@ release: ## Build stripped binaries for linux/{amd64,arm64} into ./dist/
 	mkdir -p dist
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-amd64 $(PKG)
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-arm64 $(PKG)
+
+# ── .deb packaging ──────────────────────────────────────────────────────────
+#
+# Produces a single-arch .deb that installs the binary into /usr/bin.
+# Works on every modern Debian-family release (Ubuntu 22.04, 24.04, 26.04,
+# Debian 12+) — the binary is fully static and only depends on dpkg + apt,
+# both always present on those systems.
+
+.PHONY: deb
+deb: build $(NFPM_BIN) ## Build a .deb for the host arch into ./dist/
+	@mkdir -p dist
+	VERSION=$(DEB_VERSION) $(NFPM_BIN) pkg \
+		--packager deb \
+		--target dist/$(BINARY)_$(DEB_VERSION)_$$(dpkg --print-architecture 2>/dev/null || echo amd64).deb \
+		-f nfpm.yaml
+	@echo
+	@ls -lh dist/$(BINARY)_$(DEB_VERSION)_*.deb
+	@echo
+	@echo "Install with:  sudo dpkg -i dist/$(BINARY)_$(DEB_VERSION)_*.deb"
+	@echo "Uninstall:     sudo apt remove $(BINARY)"
+
+.PHONY: deb-all
+deb-all: $(NFPM_BIN) ## Cross-build .deb for amd64 + arm64
+	@mkdir -p dist
+	@for arch in amd64 arm64; do \
+		echo ">> Building $$arch binary"; \
+		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG); \
+		echo ">> Packaging $$arch .deb"; \
+		VERSION=$(DEB_VERSION) ARCH=$$arch $(NFPM_BIN) pkg \
+			--packager deb \
+			--target dist/$(BINARY)_$(DEB_VERSION)_$$arch.deb \
+			-f nfpm.yaml; \
+	done
+	@rm -f $(BINARY)
+	@echo
+	@ls -lh dist/$(BINARY)_$(DEB_VERSION)_*.deb
+
+# Auto-download nfpm into ./bin/ on first use.
+$(NFPM_BIN):
+	@if [ -z "$(NFPM_ASSET)" ]; then \
+		echo "unsupported platform $(UNAME_S)/$(UNAME_M); install nfpm manually and re-run"; \
+		exit 1; \
+	fi
+	@mkdir -p bin
+	@echo "Downloading nfpm v$(NFPM_VERSION) ($(NFPM_ASSET))"
+	@curl -fsSL -o /tmp/nfpm.tar.gz \
+		https://github.com/goreleaser/nfpm/releases/download/v$(NFPM_VERSION)/$(NFPM_ASSET)
+	@tar -xzf /tmp/nfpm.tar.gz -C bin nfpm
+	@rm -f /tmp/nfpm.tar.gz
+	@chmod +x $(NFPM_BIN)
+	@echo "nfpm ready at $(NFPM_BIN)"
