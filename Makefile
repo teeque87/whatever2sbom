@@ -20,7 +20,7 @@ help: ## Show this help (default target)
 # Re-runs the install if the source changed (pyproject.toml is a stand-in
 # for "anything important enough to reinstall for").
 $(WHATEVER2SBOM): pyproject.toml
-	$(PYTHON) -m venv --copies $(VENV)
+	$(PYTHON) -m venv $(VENV) || $(PYTHON) -m venv --copies $(VENV)
 	$(VENV_PYTHON) -m pip install --upgrade pip
 	$(VENV_PYTHON) -m pip install -e ".[dev]"
 	@touch $(WHATEVER2SBOM)
