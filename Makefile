@@ -14,19 +14,12 @@ LDFLAGS := -s -w -X main.toolVersion=$(VERSION)
 #   make deb DEB_VERSION=0.2.0
 DEB_VERSION ?= 0.1.0
 
-UNAME_S := $(shell uname -s 2>/dev/null)
-UNAME_M := $(shell uname -m 2>/dev/null)
-
 # nfpm — Go-native multi-format packager (.deb / .rpm / .apk).
-# Not in any apt repo, only distributed via GitHub releases, so we
-# auto-download a pinned version into ./bin/ on first use.
+# Not in any apt repo, so we vendor a pinned version into ./bin/ via
+# `go install` — uses the Go toolchain we already require, no curl/wget
+# needed, works on every platform Go supports.
 NFPM_VERSION := 2.41.0
 NFPM_BIN     := ./bin/nfpm
-ifeq ($(UNAME_S)/$(UNAME_M),Linux/x86_64)
-    NFPM_ASSET := nfpm_$(NFPM_VERSION)_Linux_x86_64.tar.gz
-else ifeq ($(UNAME_S)/$(UNAME_M),Linux/aarch64)
-    NFPM_ASSET := nfpm_$(NFPM_VERSION)_Linux_arm64.tar.gz
-endif
 
 .PHONY: help
 help: ## Show this help (default target)
@@ -109,9 +102,10 @@ release: ## Build stripped binaries for linux/{amd64,arm64} into ./dist/
 .PHONY: deb
 deb: build $(NFPM_BIN) ## Build a .deb for the host arch into ./dist/
 	@mkdir -p dist
-	VERSION=$(DEB_VERSION) $(NFPM_BIN) pkg \
+	@arch=$$(dpkg --print-architecture 2>/dev/null || echo amd64); \
+	VERSION=$(DEB_VERSION) ARCH=$$arch $(NFPM_BIN) pkg \
 		--packager deb \
-		--target dist/$(BINARY)_$(DEB_VERSION)_$$(dpkg --print-architecture 2>/dev/null || echo amd64).deb \
+		--target dist/$(BINARY)_$(DEB_VERSION)_$$arch.deb \
 		-f nfpm.yaml
 	@echo
 	@ls -lh dist/$(BINARY)_$(DEB_VERSION)_*.deb
@@ -135,17 +129,10 @@ deb-all: $(NFPM_BIN) ## Cross-build .deb for amd64 + arm64
 	@echo
 	@ls -lh dist/$(BINARY)_$(DEB_VERSION)_*.deb
 
-# Auto-download nfpm into ./bin/ on first use.
+# Build nfpm via the Go toolchain into ./bin/ on first use.
+# Compiles from source (~20 s) but needs only `go`, which we already have.
 $(NFPM_BIN):
-	@if [ -z "$(NFPM_ASSET)" ]; then \
-		echo "unsupported platform $(UNAME_S)/$(UNAME_M); install nfpm manually and re-run"; \
-		exit 1; \
-	fi
 	@mkdir -p bin
-	@echo "Downloading nfpm v$(NFPM_VERSION) ($(NFPM_ASSET))"
-	@curl -fsSL -o /tmp/nfpm.tar.gz \
-		https://github.com/goreleaser/nfpm/releases/download/v$(NFPM_VERSION)/$(NFPM_ASSET)
-	@tar -xzf /tmp/nfpm.tar.gz -C bin nfpm
-	@rm -f /tmp/nfpm.tar.gz
-	@chmod +x $(NFPM_BIN)
+	@echo "Installing nfpm v$(NFPM_VERSION) via go install (one-time, ~20s)"
+	GOBIN=$(CURDIR)/bin go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v$(NFPM_VERSION)
 	@echo "nfpm ready at $(NFPM_BIN)"
