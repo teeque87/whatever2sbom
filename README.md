@@ -41,9 +41,11 @@ stage concurrently.
 | **Schema validation** | `jsonschema` (Python) | `santhosh-tekuri/jsonschema` (5–10× faster) |
 | **Cross-compilation** | n/a — relies on host Python | `GOOS=linux GOARCH=arm64 go build` |
 
-The runtime win on a real dpkg system with ~1,500 packages is roughly **1.5–2×**.
-The deployment win is the bigger story: you can drop a single binary onto a
-stripped-down Debian/Ubuntu container — no Python, no pip, no virtualenv.
+On a real Ubuntu 26.04 system with ~1,500 packages, measured end-to-end with
+[hyperfine], the Go port is **3–23× faster** depending on which enrichment
+stages are enabled (see [How fast is it?](#how-fast-is-it) for full numbers).
+The deployment win is arguably bigger: a single static binary drops onto any
+Debian/Ubuntu container — no Python, no pip, no virtualenv.
 
 ---
 
@@ -312,11 +314,11 @@ sudo apt install hyperfine    # Ubuntu 24.04+ / Debian 12+
 make bench-e2e
 ```
 
-| Configuration | Wall-clock | σ |
-|---|---:|---:|
-| `--no-licenses --no-apt-cache` — *dpkg collect + format + validate only* | **164 ms** | ± 6 ms |
-| `--no-licenses` — *+ apt-cache hash enrichment* | **2.44 s** | ± 123 ms |
-| full pipeline — *+ DEP-5 copyright extraction* | **2.52 s** | ± 68 ms |
+| Configuration | Go port | Python version | Speedup |
+|---|---:|---:|---:|
+| `--no-licenses --no-apt-cache` — dpkg collect + format + validate only | **164 ms** ± 6 ms | 3.804 s ± 0.158 s | **~23×** |
+| `--no-licenses` — + apt-cache hash enrichment | **2.44 s** ± 123 ms | 9.092 s ± 1.279 s | **~3.7×** |
+| full pipeline — + DEP-5 copyright extraction | **2.52 s** ± 68 ms | 8.362 s ± 0.269 s | **~3.3×** |
 
 Three things this reveals:
 
@@ -326,13 +328,17 @@ Three things this reveals:
   ~15× headroom over the slower variants.
 - **`apt-cache show` dominates the wall-clock.** Roughly 15 batched
   subprocess invocations contribute the next ~2.3 s, and no amount of
-  host-language work can speed up the external process. Pass
-  `--no-apt-cache` when you don't need download hashes or pool filenames.
+  host-language work can speed up the external process. The Python version
+  pays the same external cost, which is why the speedup shrinks from 23×
+  to ~3× once `apt-cache` is enabled. Pass `--no-apt-cache` when you don't
+  need download hashes or pool filenames.
 - **Copyright extraction is essentially free.** Adding DEP-5 parsing for
-  every installed package costs only ~80 ms because the worker pool reads
-  files concurrently (`runtime.NumCPU()` workers). On the Python version
-  this stage ran sequentially and paid roughly 800 ms — the headline win
-  of the port.
+  every installed package costs only ~80 ms on the Go side because the
+  worker pool reads files concurrently (`runtime.NumCPU()` workers). The
+  Python version runs this stage sequentially, adding ~800 ms — which is
+  why the full-pipeline Python run is actually *faster* than the
+  `--no-licenses` run: copyright extraction hides partly behind the
+  apt-cache I/O.
 
 [hyperfine]: https://github.com/sharkdp/hyperfine
 
