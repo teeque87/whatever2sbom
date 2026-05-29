@@ -269,7 +269,8 @@ system spend during the actual run.
 
 These are estimates extrapolated from the micro-benchmarks plus typical
 subprocess + I/O costs. Wire your own numbers in by running `make bench-e2e`
-on a real Debian/Ubuntu box (needs [hyperfine]).
+on a real Debian/Ubuntu box — [hyperfine] is auto-downloaded into `./bin/`
+on first use.
 
 |  | Python | Go |
 |---|---|---|
@@ -372,7 +373,7 @@ make            # show available targets
 make build      # stripped, static binary
 make test       # all unit tests
 make bench      # micro-benchmarks for hot paths
-make bench-e2e  # end-to-end on a real dpkg system (needs hyperfine)
+make bench-e2e  # end-to-end on a real dpkg system (auto-downloads hyperfine)
 make lint       # go vet + gofmt check
 make fmt        # apply gofmt
 make clean      # remove build artifacts and generated SBOMs
