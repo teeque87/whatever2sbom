@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -230,11 +231,21 @@ func main() {
 		outPath = defaultFilename(fmtr.OutputExtension())
 	}
 
-	raw, err := json.MarshalIndent(bom, "", "  ")
-	if err != nil {
+	// encoding/json HTML-escapes &, <, > by default (`&` etc.) — useful
+	// when embedding JSON in HTML, ugly and wrong for a CLI that writes to
+	// disk for downstream SBOM consumers. PURL qualifiers like `&distro=...`
+	// must survive verbatim. Use a streaming encoder so we can disable it.
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(bom); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: encoding BOM: %v\n", err)
 		os.Exit(1)
 	}
+	// Encoder.Encode adds a trailing newline; match Python's json.dumps()
+	// which doesn't, so the two implementations produce identical bytes.
+	raw := bytes.TrimRight(buf.Bytes(), "\n")
 	if err := os.WriteFile(outPath, raw, 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: writing %s: %v\n", outPath, err)
 		os.Exit(1)
