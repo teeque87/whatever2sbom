@@ -59,7 +59,51 @@ OPTIONS:
 
 func printUsage(fs *flag.FlagSet) {
 	fmt.Fprint(os.Stderr, usagePrefix)
-	fs.PrintDefaults()
+	printOptions(fs)
+}
+
+// printOptions writes the per-flag help block, replacing Go's stdlib
+// `PrintDefaults` which always renders flags with a single leading dash.
+// Multi-character flags get `--`, single-character flags keep `-`.
+func printOptions(fs *flag.FlagSet) {
+	fs.VisitAll(func(f *flag.Flag) {
+		prefix := "--"
+		if len(f.Name) == 1 {
+			prefix = "-"
+		}
+		typeName, usage := flag.UnquoteUsage(f)
+
+		var head strings.Builder
+		fmt.Fprintf(&head, "  %s%s", prefix, f.Name)
+		if typeName != "" {
+			fmt.Fprintf(&head, " %s", typeName)
+		}
+
+		var def string
+		if !isZeroDefault(f.DefValue, typeName) {
+			if typeName == "string" {
+				def = fmt.Sprintf(" (default %q)", f.DefValue)
+			} else {
+				def = fmt.Sprintf(" (default %s)", f.DefValue)
+			}
+		}
+
+		fmt.Fprintf(os.Stderr, "%s\n        %s%s\n", head.String(), usage, def)
+	})
+}
+
+// isZeroDefault reports whether a flag's default is its type's zero value.
+// We render the "(default ...)" suffix only when the default is non-zero,
+// matching what stdlib `PrintDefaults` does.
+func isZeroDefault(v, typeName string) bool {
+	switch typeName {
+	case "": // bool flags have no type hint
+		return v == "false"
+	case "string":
+		return v == ""
+	default:
+		return v == "" || v == "0"
+	}
 }
 
 func main() {
