@@ -11,39 +11,56 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-// The CycloneDX 1.6 JSON schema is bundled into the binary at compile time.
+// All three CycloneDX schemas are bundled at compile time. The bom schema
+// $ref's the other two via relative URIs that resolve against its $id —
+// they must be registered with the compiler at their canonical $id URLs
+// so resolution never falls back to the library's HTTP loader.
 //
-//go:embed schemas/bom-1.6.schema.json
-var cycloneDX16Schema []byte
+// Validation is therefore fully offline: no network access at runtime.
+var (
+	//go:embed schemas/bom-1.6.schema.json
+	bomSchema []byte
+	//go:embed schemas/spdx.schema.json
+	spdxSchema []byte
+	//go:embed schemas/jsf-0.82.schema.json
+	jsfSchema []byte
+)
+
+// Canonical $id URLs declared inside each bundled schema. The bom schema
+// references the others via relative URIs that resolve against these IDs.
+const (
+	bomSchemaURL  = "http://cyclonedx.org/schema/bom-1.6.schema.json"
+	spdxSchemaURL = "http://cyclonedx.org/schema/spdx.schema.json"
+	jsfSchemaURL  = "http://cyclonedx.org/schema/jsf-0.82.schema.json"
+)
 
 // CycloneDXSchema validates against the embedded CycloneDX 1.6 JSON schema.
 type CycloneDXSchema struct {
 	schema *jsonschema.Schema
 }
 
-// NewCycloneDXSchema compiles the embedded schema once at construction.
-//
-// CycloneDX's official schema references spdx.schema.json — a separate file
-// that ships as a stub here (any string passes) so the rest of the schema
-// still validates without an external resolver.
+// NewCycloneDXSchema compiles the bundled schemas once at construction.
+// Returns an error if any embedded schema is malformed or any internal
+// $ref fails to resolve — both are programmer errors, not user errors.
 func NewCycloneDXSchema() (*CycloneDXSchema, error) {
-	const (
-		bomURL  = "https://cyclonedx.org/schema/bom-1.6.schema.json"
-		spdxURL = "https://cyclonedx.org/schema/spdx.schema.json"
-	)
-	stub := []byte(`{"type":"string"}`)
-
 	compiler := jsonschema.NewCompiler()
 	compiler.Draft = jsonschema.Draft7
 
-	if err := compiler.AddResource(bomURL, bytes.NewReader(cycloneDX16Schema)); err != nil {
-		return nil, fmt.Errorf("registering CycloneDX schema: %w", err)
+	resources := []struct {
+		url  string
+		body []byte
+	}{
+		{bomSchemaURL, bomSchema},
+		{spdxSchemaURL, spdxSchema},
+		{jsfSchemaURL, jsfSchema},
 	}
-	if err := compiler.AddResource(spdxURL, bytes.NewReader(stub)); err != nil {
-		return nil, fmt.Errorf("registering SPDX stub schema: %w", err)
+	for _, r := range resources {
+		if err := compiler.AddResource(r.url, bytes.NewReader(r.body)); err != nil {
+			return nil, fmt.Errorf("registering %s: %w", r.url, err)
+		}
 	}
 
-	sch, err := compiler.Compile(bomURL)
+	sch, err := compiler.Compile(bomSchemaURL)
 	if err != nil {
 		return nil, fmt.Errorf("compiling CycloneDX schema: %w", err)
 	}
