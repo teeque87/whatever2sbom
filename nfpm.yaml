@@ -11,7 +11,7 @@ platform:    linux
 version:     ${VERSION}
 section:     utils
 priority:    optional
-maintainer:  Michael H. <teeque87@gmail.com>
+maintainer:  Michael Hansonis <info@teeque.dev>
 description: |
   Generate a validated CycloneDX 1.6 SBOM from a Debian/Ubuntu system.
   Walks the dpkg database, enriches with apt-cache, extracts licenses
@@ -19,7 +19,7 @@ description: |
   embedded JSON schema before writing output to disk.
 vendor:      teeque87
 homepage:    https://github.com/teeque87/whatever2sbom
-license:     MIT
+license:     GPL-3.0-only
 
 # Runtime dependencies. Both are always present on Debian/Ubuntu — listed
 # so dpkg refuses to install on something that's truly missing them.
@@ -36,7 +36,7 @@ contents:
       mode: 0755
       owner: root
       group: root
-  - src: ./LICENSE
+  - src: ./debian/copyright
     dst: /usr/share/doc/whatever2sbom/copyright
     file_info:
       mode: 0644
