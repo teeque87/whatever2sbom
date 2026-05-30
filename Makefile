@@ -114,7 +114,7 @@ deb: build $(NFPM_BIN) ## Build a .deb for the host arch into ./dist/
 	@echo
 	@ls -lh dist/$(BINARY)_$(DEB_VERSION)_*.deb
 	@echo
-	@echo "Install with:  sudo dpkg -i dist/$(BINARY)_$(DEB_VERSION)_*.deb"
+	@echo "Install with:  sudo apt install dist/$(BINARY)_$(DEB_VERSION)_$$(dpkg --print-architecture 2>/dev/null || echo amd64).deb"
 	@echo "Uninstall:     sudo apt remove $(BINARY)"
 
 .PHONY: deb-all
