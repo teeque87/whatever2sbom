@@ -19,9 +19,11 @@ type Package struct {
 	Essential string
 
 	// Provenance
-	Source     string // source package name
-	Origin     string // repository origin (e.g. Ubuntu)
-	Maintainer string // "Name <email>" — maps to supplier + contact
+	Source        string // raw dpkg ${Source} field (may be "name (version)" or empty)
+	SourceName    string // resolved source package name (${source:Package})
+	SourceVersion string // resolved source version incl. epoch (${source:Version})
+	Origin        string // repository origin (e.g. Ubuntu)
+	Maintainer    string // "Name <email>" — maps to supplier + contact
 
 	// References
 	Homepage string
@@ -51,4 +53,13 @@ type Package struct {
 
 	// Enriched
 	Licenses []string
+
+	// Package-URLs, filled by the collector for its ecosystem (formatters emit
+	// these verbatim and never construct PURLs themselves):
+	//   PURL   — the matchable coordinate a vuln scanner keys on (for deb: the
+	//            source package + arch=source).
+	//   BomRef — a unique node id for the dependency graph (for deb: the per-
+	//            binary coordinate incl. arch).
+	PURL   string
+	BomRef string
 }

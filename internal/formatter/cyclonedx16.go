@@ -10,7 +10,6 @@ import (
 
 	"whatever2sbom/internal/model"
 	"whatever2sbom/internal/osinfo"
-	"whatever2sbom/internal/purl"
 )
 
 // Tool identity is injected at build time via main.SetToolMetadata so the
@@ -198,22 +197,20 @@ func (f *CycloneDX16) Format(pkgs []*model.Package) (any, error) {
 			distro = "debian"
 		}
 	}
-	codename := osInfo["version_codename"]
-
 	// name → bom-ref index, plus the reverse list of refs (used for the
-	// root "dependsOn" so the order matches the components array).
+	// root "dependsOn" so the order matches the components array). PURLs are
+	// built by the collector; the formatter just consumes them.
 	nameToRef := make(map[string]string, len(pkgs))
 	pkgRefs := make([]string, len(pkgs))
 	for i, p := range pkgs {
-		ref := buildPURL(p, distro, codename)
-		nameToRef[p.Name] = ref
-		pkgRefs[i] = ref
+		nameToRef[p.Name] = p.BomRef
+		pkgRefs[i] = p.BomRef
 	}
 	providesMap := buildProvidesMap(pkgs, nameToRef)
 
 	components := make([]component, len(pkgs))
 	for i, p := range pkgs {
-		components[i] = f.buildComponent(p, distro, codename)
+		components[i] = f.buildComponent(p)
 	}
 
 	deps := f.buildDependencies(pkgs, nameToRef, providesMap)
@@ -301,22 +298,6 @@ func resolveDeps(depString string, nameToRef, providesMap map[string]string) []s
 }
 
 // ── component builders ───────────────────────────────────────────────────────
-
-func buildPURL(p *model.Package, distro, codename string) string {
-	v := purl.QuoteVersion(p.Version)
-	out := fmt.Sprintf("pkg:deb/%s/%s@%s", distro, p.Name, v)
-	var qs []string
-	if p.Architecture != "" && p.Architecture != "all" {
-		qs = append(qs, "arch="+p.Architecture)
-	}
-	if codename != "" {
-		qs = append(qs, "distro="+codename)
-	}
-	if len(qs) > 0 {
-		out += "?" + strings.Join(qs, "&")
-	}
-	return out
-}
 
 func mapType(p *model.Package) string {
 	section := strings.ToLower(p.Section)
@@ -412,6 +393,8 @@ func buildProperties(p *model.Package) []property {
 		{p.InstalledSize, "dpkg:installed-size"},
 		{p.Size, "dpkg:download-size"},
 		{p.Source, "dpkg:source"},
+		{p.SourceName, "dpkg:source-name"},
+		{p.SourceVersion, "dpkg:source-version"},
 		{p.Origin, "dpkg:origin"},
 		{p.MultiArch, "dpkg:multi-arch"},
 	}
@@ -424,14 +407,16 @@ func buildProperties(p *model.Package) []property {
 	return out
 }
 
-func (f *CycloneDX16) buildComponent(p *model.Package, distro, codename string) component {
-	ref := buildPURL(p, distro, codename)
+func (f *CycloneDX16) buildComponent(p *model.Package) component {
+	// PURLs come from the collector: bom-ref is the unique per-binary coordinate
+	// (keeps the dependency graph intact); the matchable `purl` is the source
+	// coordinate scanners key on.
 	return component{
 		Type:         mapType(p),
-		BomRef:       ref,
+		BomRef:       p.BomRef,
 		Name:         p.Name,
 		Version:      p.Version,
-		Purl:         ref,
+		Purl:         p.PURL,
 		Scope:        mapScope(p),
 		Description:  p.Description,
 		Supplier:     buildSupplier(p.Maintainer),
