@@ -7,7 +7,11 @@
 BINARY  := whatever2sbom
 PKG     := ./cmd/whatever2sbom
 VERSION := $(shell git describe --tags --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X main.toolVersion=$(VERSION)
+LDFLAGS    := -s -w -X main.toolVersion=$(VERSION)
+# Shared-folder mounts (VirtualBox, VMware) appear to git as foreign ownership,
+# causing "exit status 128". -buildvcs=false skips the Go toolchain's own VCS
+# stamp so builds work regardless of mount ownership.
+BUILDFLAGS := -buildvcs=false
 
 # Debian package version. Must be a strict semver (no leading "v", no "+").
 # Override at the command line for releases:
@@ -28,11 +32,11 @@ help: ## Show this help (default target)
 
 .PHONY: build
 build: ## Build a stripped, static binary into ./$(BINARY)
-	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG)
+	CGO_ENABLED=0 go build $(BUILDFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG)
 
 .PHONY: install
 install: ## Install the binary into $$GOBIN (or $$GOPATH/bin)
-	CGO_ENABLED=0 go install -ldflags "$(LDFLAGS)" $(PKG)
+	CGO_ENABLED=0 go install $(BUILDFLAGS) -ldflags "$(LDFLAGS)" $(PKG)
 
 .PHONY: test
 test: ## Run all unit tests
@@ -89,8 +93,8 @@ clean: ## Remove build artifacts, downloaded tools, and generated SBOMs
 .PHONY: release
 release: ## Build stripped binaries for linux/{amd64,arm64} into ./dist/
 	mkdir -p dist
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-amd64 $(PKG)
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-arm64 $(PKG)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(BUILDFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-amd64 $(PKG)
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build $(BUILDFLAGS) -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-linux-arm64 $(PKG)
 
 # ── .deb packaging ──────────────────────────────────────────────────────────
 #
@@ -118,7 +122,7 @@ deb-all: $(NFPM_BIN) ## Cross-build .deb for amd64 + arm64
 	@mkdir -p dist
 	@for arch in amd64 arm64; do \
 		echo ">> Building $$arch binary"; \
-		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG); \
+		CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build $(BUILDFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG); \
 		echo ">> Packaging $$arch .deb"; \
 		VERSION=$(DEB_VERSION) ARCH=$$arch $(NFPM_BIN) pkg \
 			--packager deb \

@@ -97,7 +97,7 @@ func (v *CycloneDXSchema) Validate(bom any) []string {
 		slog.Warn("schema validation failed", "errors", len(errs))
 		return errs
 	}
-	slog.Info("schema validation passed")
+	slog.Info("  ← Validation passed")
 	return nil
 }
 

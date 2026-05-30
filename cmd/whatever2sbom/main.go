@@ -160,7 +160,7 @@ func main() {
 	if *verbose {
 		logLevel = slog.LevelDebug
 	}
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+	slog.SetDefault(slog.New(newCompactHandler(os.Stderr, logLevel)))
 
 	// Required flag.
 	if *productSupplier == "" {
@@ -182,7 +182,7 @@ func main() {
 	}
 
 	// ── wire pipeline ─────────────────────────────────────────────────────────
-	col := collector.NewDpkg()
+	col := collector.NewDpkg(*distro)
 
 	var ers []enricher.Enricher
 	if !*noAptCache {

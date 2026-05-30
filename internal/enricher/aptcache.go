@@ -2,6 +2,7 @@ package enricher
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -36,7 +37,7 @@ func (AptCache) Name() string { return "apt-cache" }
 // fields into the matching model.Package. Apt-cache is invoked in batches of
 // aptCacheBatchSize names to keep argv reasonable.
 func (e *AptCache) Enrich(pkgs []*model.Package) ([]*model.Package, error) {
-	slog.Info("apt-cache: fetching metadata", "packages", len(pkgs))
+	slog.Info(fmt.Sprintf("  fetching metadata for %d packages", len(pkgs)))
 	names := make([]string, len(pkgs))
 	for i, p := range pkgs {
 		names[i] = p.Name
@@ -44,7 +45,7 @@ func (e *AptCache) Enrich(pkgs []*model.Package) ([]*model.Package, error) {
 
 	index, err := fetchAptCache(names)
 	if err != nil {
-		slog.Warn("apt-cache: skipping enrichment", "err", err)
+		slog.Warn(fmt.Sprintf("  skipping apt-cache: %v", err))
 		return pkgs, nil
 	}
 
@@ -75,7 +76,7 @@ func (e *AptCache) Enrich(pkgs []*model.Package) ([]*model.Package, error) {
 		}
 	}
 
-	slog.Info("apt-cache: matched packages", "hits", hits, "total", len(pkgs))
+	slog.Info(fmt.Sprintf("  ← %d / %d packages matched", hits, len(pkgs)))
 	return pkgs, nil
 }
 

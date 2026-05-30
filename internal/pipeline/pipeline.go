@@ -43,29 +43,28 @@ func New(
 // Validation failures return *ValidationError so the caller can render
 // per-violation messages.
 func (p *Pipeline) Run() (any, error) {
-	slog.Info("collecting", "source", p.Collector.Name())
+	slog.Info("Collecting", "→", p.Collector.Name())
 	pkgs, err := p.Collector.Collect()
 	if err != nil {
 		return nil, err
 	}
-	slog.Info("collected", "packages", len(pkgs))
 
 	for _, e := range p.Enrichers {
-		slog.Info("enriching", "via", e.Name())
+		slog.Info("Enriching", "→", e.Name())
 		pkgs, err = e.Enrich(pkgs)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	slog.Info("formatting", "via", p.Formatter.Name())
+	slog.Info("Formatting", "→", p.Formatter.Name())
 	bom, err := p.Formatter.Format(pkgs)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, v := range p.Validators {
-		slog.Info("validating", "via", v.Name())
+		slog.Info("Validating", "→", v.Name())
 		if errs := v.Validate(bom); len(errs) > 0 {
 			return nil, &ValidationError{Errors: errs}
 		}

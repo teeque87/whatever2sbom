@@ -2,8 +2,6 @@ package formatter
 
 import (
 	"testing"
-
-	"whatever2sbom/internal/model"
 )
 
 // A representative Debian Depends field — multiple comma-separated groups,
@@ -24,19 +22,6 @@ func BenchmarkResolveDeps(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = resolveDeps(dependsRealistic, nameToRef, provides)
-	}
-}
-
-func BenchmarkBuildPURL(b *testing.B) {
-	// Version with "+" forces percent-encoding — the slow path.
-	p := &model.Package{
-		Name:         "libfoo",
-		Version:      "2.34+dfsg-1ubuntu1.2",
-		Architecture: "amd64",
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = buildPURL(p, "debian", "bookworm")
 	}
 }
 

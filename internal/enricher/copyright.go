@@ -1,6 +1,7 @@
 package enricher
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -104,10 +105,7 @@ func (e *Copyright) Enrich(pkgs []*model.Package) ([]*model.Package, error) {
 	close(jobs)
 	wg.Wait()
 
-	slog.Info("copyright: resolved licenses",
-		"found", found.Load(),
-		"total", len(pkgs),
-	)
+	slog.Info(fmt.Sprintf("  ← %d / %d licenses resolved", found.Load(), len(pkgs)))
 	return pkgs, nil
 }
 

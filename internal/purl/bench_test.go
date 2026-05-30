@@ -15,3 +15,10 @@ func BenchmarkQuoteVersion_Encoded(b *testing.B) {
 		_ = QuoteVersion("2.34+dfsg-1ubuntu1.2")
 	}
 }
+
+func BenchmarkDeb(b *testing.B) {
+	// Version with "+" forces percent-encoding — the slow path.
+	for i := 0; i < b.N; i++ {
+		_ = Deb("debian", "libfoo", "2.34+dfsg-1ubuntu1.2", "amd64", "bookworm")
+	}
+}
