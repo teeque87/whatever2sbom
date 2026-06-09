@@ -136,15 +136,23 @@ The dominant cost in all three cases is `apt-cache show` (15+ subprocess calls f
 
 Each component in the SBOM contains:
 
-- `name`, `version`, `purl` — package identity
+- `bom-ref` — unique per-binary coordinate used as the dependency graph node id:
+  `pkg:deb/<distro>/<binary_name>@<binary_version>?arch=<arch>&distro=<codename>`
+- `purl` — matchable source coordinate that vulnerability scanners (OSV.dev, Grype, …) key on:
+  `pkg:deb/<distro>/<source_name>@<source_version>?arch=source&distro=<codename>`
+- `name`, `version` — binary package identity
 - `type` — derived from the dpkg section (`library`, `application`, `firmware`, `operating-system`)
 - `scope` — `required` for essential/important packages, `optional` otherwise
 - `supplier` — maintainer name and email parsed from the `Maintainer` field
 - `licenses` — SPDX identifiers extracted from the DEP-5 copyright file (when available)
 - `hashes` — SHA-256, SHA-512, SHA-1, MD5 (populated by apt-cache enrichment)
 - `externalReferences` — homepage, bug tracker, pool download path
-- `properties` — additional dpkg metadata: `dpkg:section`, `dpkg:priority`, `dpkg:installed-size`, `dpkg:download-size`, `dpkg:source`, `dpkg:origin`, `dpkg:multi-arch`
+- `properties` — additional dpkg metadata: `dpkg:section`, `dpkg:priority`, `dpkg:installed-size`, `dpkg:download-size`, `dpkg:source`, `dpkg:source-name`, `dpkg:source-version`, `dpkg:origin`, `dpkg:multi-arch`
 - `dependencies` — direct `Depends` and `Pre-Depends`, with virtual package names resolved via `Provides`
+
+The `bom-ref` and `purl` differ for packages that have a distinct source package (e.g. `poppler-utils`
+is the binary but `poppler` is the source that OSV/Ubuntu advisories are published against). For
+packages with no distinct source, both fields use the binary name and version.
 
 The BOM metadata includes coverage statistics as properties:
 
@@ -153,3 +161,8 @@ sbom:total-components
 sbom:hash-coverage / sbom:hash-coverage-pct
 sbom:license-coverage / sbom:license-coverage-pct
 ```
+
+## Validation
+
+The bundled CycloneDX 1.6 JSON schema and the SPDX license expression schema are embedded in the
+package — no network access is required at runtime. Validation always runs; there is no opt-out.
