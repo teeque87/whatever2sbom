@@ -34,7 +34,7 @@ class DpkgSystem(SystemPlugin):
         )
 
     def make_collector(self, args: argparse.Namespace) -> DpkgCollector:
-        return DpkgCollector()
+        return DpkgCollector(distro=getattr(args, "distro", None))
 
     def make_enrichers(self, args: argparse.Namespace) -> list:
         enrichers = []

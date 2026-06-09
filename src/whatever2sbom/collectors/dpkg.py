@@ -1,8 +1,10 @@
 import logging
 import subprocess
 
+from whatever2sbom._os import get_os_info
 from whatever2sbom.collectors.base import Collector
 from whatever2sbom.models import PackageRecord
+from whatever2sbom import purl as _purl
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,12 @@ _FIELDS: dict[str, str] = {
     "version":        "${Version}",
     "architecture":   "${Architecture}",
     "source":         "${Source}",
+    # Resolved source identity. ${source:Package}/${source:Version} fall back to
+    # the binary name/version when a package has no distinct source, and crucially
+    # carry the source version *with epoch* and without binNMU suffixes — which is
+    # exactly the coordinate OSV / Ubuntu security data is published against.
+    "source_package": "${source:Package}",
+    "source_version": "${source:Version}",
     "section":        "${Section}",
     "priority":       "${Priority}",
     "installed_size": "${Installed-Size}",
@@ -72,11 +80,20 @@ def _to_record(raw: dict[str, str]) -> PackageRecord:
         val = raw.get(key, "")
         return val if val else None
 
+    # dpkg renders Multi-Arch packages as "name:arch" in ${binary:Package}.
+    # Package names never contain a colon, so strip the arch qualifier to get
+    # the bare name — the architecture is captured separately (and lands in the
+    # PURL `arch=` qualifier). This also keeps dependency-graph keys consistent
+    # with _normalize_dep_name in the formatter, which already strips ":arch".
+    name = raw["package"].split(":")[0]
+
     return PackageRecord(
-        name=raw["package"],
+        name=name,
         version=v("version") or "",
         architecture=v("architecture"),
         source=v("source"),
+        source_name=v("source_package"),
+        source_version=v("source_version"),
         section=v("section"),
         priority=v("priority"),
         installed_size=v("installed_size"),
@@ -97,13 +114,37 @@ def _to_record(raw: dict[str, str]) -> PackageRecord:
     )
 
 
+def _resolve_distro(override: str | None, os_info: dict[str, str]) -> tuple[str, str | None]:
+    """Return (distro_id, codename), honoring an explicit override."""
+    distro = override or os_info.get("id") or "debian"
+    codename = os_info.get("version_codename") or None
+    return distro, codename
+
+
+def _fill_purls(pkg: PackageRecord, distro: str, codename: str | None) -> None:
+    """Fill the matchable PURL and the unique bom_ref for one package.
+
+    - bom_ref: the per-binary coordinate (name + arch) — unique dep-graph node id.
+    - purl:    the source coordinate with arch=source — what vuln scanners match.
+
+    source_name/source_version fall back to the binary name/version for packages
+    that have no distinct source.
+    """
+    pkg.bom_ref = _purl.deb(distro, pkg.name, pkg.version, pkg.architecture or "", codename)
+
+    src_name = pkg.source_name or pkg.name
+    src_ver = pkg.source_version or pkg.version
+    pkg.purl = _purl.deb(distro, src_name, src_ver, "source", codename)
+
+
 class DpkgCollector(Collector):
     """Collect installed packages via dpkg-query."""
 
     name = "dpkg"
 
-    def __init__(self, installed_only: bool = True) -> None:
+    def __init__(self, installed_only: bool = True, distro: str | None = None) -> None:
         self._installed_only = installed_only
+        self._distro = distro
 
     def collect(self) -> list[PackageRecord]:
         fmt = _build_format_string()
@@ -130,5 +171,11 @@ class DpkgCollector(Collector):
                     continue
             packages.append(_to_record(raw))
 
-        logger.info("Collected %d packages via dpkg-query", len(packages))
+        # PURLs are an ecosystem fact, so the collector owns them: deb coordinates
+        # live here, and the formatter just emits pkg.purl / pkg.bom_ref verbatim.
+        distro, codename = _resolve_distro(self._distro, get_os_info())
+        for pkg in packages:
+            _fill_purls(pkg, distro, codename)
+
+        logger.info("  ← %d packages found", len(packages))
         return packages

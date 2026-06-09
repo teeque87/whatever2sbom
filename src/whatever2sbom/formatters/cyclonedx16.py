@@ -1,7 +1,6 @@
 import re
 import uuid
 from datetime import datetime, timezone
-from urllib.parse import quote as _urlquote
 
 import whatever2sbom
 from whatever2sbom._os import get_os_info
@@ -76,20 +75,6 @@ def _resolve_deps(
 
 # ── component field builders ──────────────────────────────────────────────────
 
-def _build_purl(pkg: PackageRecord, distro: str, codename: str | None = None) -> str:
-    # Percent-encode the version; keep . - : ~ unencoded per PURL spec examples.
-    version = _urlquote(pkg.version, safe=".-:~")
-    purl = f"pkg:deb/{distro}/{pkg.name}@{version}"
-    qualifiers: list[str] = []
-    if pkg.architecture and pkg.architecture != "all":
-        qualifiers.append(f"arch={pkg.architecture}")
-    if codename:
-        qualifiers.append(f"distro={codename}")
-    if qualifiers:
-        purl += "?" + "&".join(qualifiers)
-    return purl
-
-
 def _map_type(pkg: PackageRecord) -> str:
     section = (pkg.section or "").lower().split("/")[-1]
     if (pkg.essential or "").lower() == "yes":
@@ -158,6 +143,8 @@ def _build_properties(pkg: PackageRecord) -> list[dict]:
         ("installed_size", "dpkg:installed-size"),
         ("size",           "dpkg:download-size"),
         ("source",         "dpkg:source"),
+        ("source_name",    "dpkg:source-name"),
+        ("source_version", "dpkg:source-version"),
         ("origin",         "dpkg:origin"),
         ("multi_arch",     "dpkg:multi-arch"),
     ]
@@ -201,21 +188,23 @@ class CycloneDXFormatter(Formatter):
     def format(self, packages: list[PackageRecord]) -> dict:
         os_info  = get_os_info()
         distro   = self._distro or os_info.get("id", "debian")
-        codename = os_info.get("version_codename") or None
 
+        # PURLs come from the collector: bom_ref is the unique per-binary
+        # coordinate (keeps the dependency graph intact); the matchable purl is
+        # the source coordinate scanners key on. Both are emitted verbatim here.
         name_to_ref: dict[str, str] = {
-            pkg.name: _build_purl(pkg, distro, codename)
+            pkg.name: pkg.bom_ref or ""
             for pkg in packages
         }
         provides_map = _build_provides_map(packages, name_to_ref)
 
-        components   = [self._build_component(pkg, distro, codename) for pkg in packages]
+        components   = [self._build_component(pkg) for pkg in packages]
         dependencies = self._build_dependencies(packages, name_to_ref, provides_map)
         metadata     = self._build_metadata(os_info, distro, components)
 
         # metadata.component is always the single root of the dependency tree.
         root_ref = self._root_bom_ref()
-        pkg_refs = [_build_purl(p, distro, codename) for p in packages]
+        pkg_refs = [p.bom_ref or "" for p in packages]
         dependencies.insert(0, {"ref": root_ref, "dependsOn": pkg_refs})
 
         return {
@@ -238,14 +227,16 @@ class CycloneDXFormatter(Formatter):
             return f"product:{self._product_name}"
         return "os-component"
 
-    def _build_component(self, pkg: PackageRecord, distro: str, codename: str | None = None) -> dict:
-        bom_ref = _build_purl(pkg, distro, codename)
+    def _build_component(self, pkg: PackageRecord) -> dict:
+        # PURLs come from the collector: bom_ref is the unique per-binary
+        # coordinate (keeps the dependency graph intact); the matchable purl is
+        # the source coordinate scanners key on.
         component: dict = {
             "type":    _map_type(pkg),
-            "bom-ref": bom_ref,
+            "bom-ref": pkg.bom_ref or "",
             "name":    pkg.name,
             "version": pkg.version,
-            "purl":    bom_ref,
+            "purl":    pkg.purl or "",
             "scope":   _map_scope(pkg),
         }
 

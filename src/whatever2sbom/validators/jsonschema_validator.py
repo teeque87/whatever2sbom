@@ -24,20 +24,21 @@ class CycloneDXSchemaValidator(Validator):
 
     def __init__(self, schema_path: Path | None = None) -> None:
         path = schema_path or _DEFAULT_SCHEMA
+        spdx_path = path.parent / "spdx.schema.json"
+
         with open(path, encoding="utf-8") as fh:
             schema = json.load(fh)
+        with open(spdx_path, encoding="utf-8") as fh:
+            spdx_schema = json.load(fh)
 
-        # spdx.schema.json is referenced by the bom schema but not bundled.
-        # Register a stub (open string type) so the rest of the schema validates
-        # without a resolution error.
         registry = Registry().with_resources([
             (
                 path.as_uri(),
                 Resource.from_contents(schema, default_specification=DRAFT7),
             ),
             (
-                (path.parent / "spdx.schema.json").as_uri(),
-                Resource.from_contents({"type": "string"}, default_specification=DRAFT7),
+                spdx_path.as_uri(),
+                Resource.from_contents(spdx_schema, default_specification=DRAFT7),
             ),
         ])
 
@@ -49,7 +50,7 @@ class CycloneDXSchemaValidator(Validator):
             path = ".".join(str(p) for p in error.absolute_path) or "(root)"
             errors.append(f"{path}: {error.message}")
         if errors:
-            logger.warning("Schema validation: %d error(s)", len(errors))
+            logger.warning("Schema validation failed: %d error(s)", len(errors))
         else:
-            logger.info("Schema validation passed")
+            logger.info("  ← Validation passed")
         return errors

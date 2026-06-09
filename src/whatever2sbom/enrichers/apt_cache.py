@@ -58,7 +58,7 @@ def _fetch(names: list[str]) -> dict[tuple[str, str], dict[str, str]]:
                 if name and version:
                     index[(name, version)] = stanza
         except FileNotFoundError:
-            logger.warning("apt-cache not found, skipping cache enrichment")
+            logger.warning("  skipping apt-cache: command not found")
             break
     return index
 
@@ -69,7 +69,7 @@ class AptCacheEnricher(Enricher):
     name = "apt-cache"
 
     def enrich(self, packages: list[PackageRecord]) -> list[PackageRecord]:
-        logger.info("Fetching apt-cache metadata for %d packages", len(packages))
+        logger.info("  fetching metadata for %d packages", len(packages))
         names = [p.name for p in packages]
         cache = _fetch(names)
         hits = 0
@@ -84,5 +84,5 @@ class AptCacheEnricher(Enricher):
                 if val:
                     setattr(pkg, field, val)
 
-        logger.info("apt-cache: matched %d/%d packages", hits, len(packages))
+        logger.info("  ← %d / %d packages matched", hits, len(packages))
         return packages

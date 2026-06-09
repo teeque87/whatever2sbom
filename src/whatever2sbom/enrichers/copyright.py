@@ -154,5 +154,5 @@ class CopyrightEnricher(Enricher):
             if licenses:
                 pkg.licenses = licenses
                 found += 1
-        logger.info("copyright: resolved licenses for %d/%d packages", found, len(packages))
+        logger.info("  ← %d / %d licenses resolved", found, len(packages))
         return packages

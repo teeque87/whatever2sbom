@@ -17,7 +17,9 @@ class PackageRecord:
     essential: Optional[str] = None
 
     # ── provenance ────────────────────────────────────────────────────────────
-    source: Optional[str] = None       # source package name
+    source: Optional[str] = None        # raw dpkg ${Source} field (may be "name (version)" or empty)
+    source_name: Optional[str] = None   # resolved source package name (${source:Package})
+    source_version: Optional[str] = None  # resolved source version incl. epoch (${source:Version})
     origin: Optional[str] = None       # repository origin (e.g. Ubuntu)
     maintainer: Optional[str] = None   # "Name <email>" — maps to supplier + contact
 
@@ -49,3 +51,12 @@ class PackageRecord:
 
     # ── enriched fields ───────────────────────────────────────────────────────
     licenses: list[str] = field(default_factory=list)
+
+    # Package-URLs, filled by the collector for its ecosystem (formatters emit
+    # these verbatim and never construct PURLs themselves):
+    #   purl    — the matchable coordinate a vuln scanner keys on (for deb: the
+    #             source package + arch=source).
+    #   bom_ref — a unique node id for the dependency graph (for deb: the per-
+    #             binary coordinate incl. arch).
+    purl: Optional[str] = None
+    bom_ref: Optional[str] = None
