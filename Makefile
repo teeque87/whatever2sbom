@@ -45,6 +45,16 @@ bench-e2e: $(WHATEVER2SBOM) ## End-to-end benchmark via hyperfine (mirrors the G
 		'$(WHATEVER2SBOM) --product-supplier bench --no-licenses -o /tmp/bench-py-no-lic.cdx.json' \
 		'$(WHATEVER2SBOM) --product-supplier bench -o /tmp/bench-py-full.cdx.json'
 
+.PHONY: wheel
+wheel: $(WHATEVER2SBOM) ## Build a distributable wheel into dist/
+	rm -rf dist/
+	$(VENV_PYTHON) -m build --wheel
+	@echo ""
+	@echo "Wheel ready: $$(ls dist/*.whl)"
+	@echo ""
+	@echo "Install locally:           pip install $$(ls dist/*.whl)"
+	@echo "Transfer + install remote: scp $$(ls dist/*.whl) user@host:/tmp/ && ssh user@host pip install /tmp/$$(ls dist/*.whl | xargs basename)"
+
 .PHONY: clean
 clean: ## Remove the venv, build artefacts, and generated SBOMs
 	rm -rf $(VENV) build dist *.egg-info src/*.egg-info
