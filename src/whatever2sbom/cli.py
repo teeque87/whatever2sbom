@@ -166,14 +166,26 @@ def _summarize_findings(findings: list[str]) -> list[tuple[str, int]]:
     return counts.most_common()
 
 
+class _LevelFormatter(logging.Formatter):
+    """Plain "%(message)s" for INFO, "%(levelname)-8s %(message)s" otherwise."""
+
+    _plain = logging.Formatter("%(message)s")
+    _decorated = logging.Formatter("%(levelname)-8s %(message)s")
+
+    def format(self, record: logging.LogRecord) -> str:
+        formatter = self._plain if record.levelno == logging.INFO else self._decorated
+        return formatter.format(record)
+
+
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
     perf.enabled = args.performance_metrics
 
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(_LevelFormatter())
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(levelname)-8s %(message)s",
-        stream=sys.stderr,
+        handlers=[handler],
     )
 
     # ── resolve pipeline components ───────────────────────────────────────────
