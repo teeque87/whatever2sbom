@@ -1,11 +1,13 @@
 """
 Extract license identifiers from /usr/share/doc/<pkg>/copyright files.
 
-Supports DEP-5 machine-readable format. Falls back silently for packages
-that use old-style free-form copyright files.
+Supports DEP-5 machine-readable format, with a best-effort fallback for
+old-style free-form copyright files based on standard FSF license-grant
+boilerplate.
 """
 
 import logging
+import re
 from pathlib import Path
 
 from whatever2sbom.enrichers.base import Enricher
@@ -137,6 +139,66 @@ def _parse_dep5(content: str) -> tuple[list[str], str | None]:
     return licenses, notice
 
 
+# Standard FSF license-grant families: their full name, or the bare
+# abbreviation (e.g. "GNU LGPL version 2", "licensed under the LGPL").
+# `\b...\b` keeps "GPL" from matching inside "LGPL"/"AGPL" -- there's no word
+# boundary between the leading "L"/"A" and "G".
+_FSF_LICENSE_FAMILIES: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"GNU\s+Affero\s+General\s+Public\s+License|\bAGPL\b"), "AGPL"),
+    (re.compile(r"GNU\s+(?:Lesser|Library)\s+General\s+Public\s+License|\bLGPL\b"), "LGPL"),
+    (re.compile(r"GNU\s+General\s+Public\s+License|\bGPL\b"), "GPL"),
+    (re.compile(r"GNU\s+Free\s+Documentation\s+License|\bGFDL\b"), "GFDL"),
+]
+
+_FSF_VERSION_RE = re.compile(r"[Vv]ersion\s+(\d+(?:\.\d+)?)")
+_FSF_OR_LATER_RE = re.compile(r"any later version|or later", re.IGNORECASE)
+
+# How far past a license-family name to look for its version number and "or
+# later" wording -- FSF boilerplate states both within the same sentence,
+# e.g. "...either version 3 of the License, or (at your option) any later
+# version."
+_FSF_WINDOW = 250
+
+
+def _normalize_fsf_version(version: str) -> str:
+    return version if "." in version else f"{version}.0"
+
+
+def _extract_fsf_licenses(content: str) -> list[str]:
+    """
+    Best-effort extraction of SPDX ids from old-style (non-DEP-5) copyright
+    files, by recognizing the standard FSF license-grant boilerplate (e.g.
+    "...under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or (at
+    your option) any later version.").
+
+    References to licenses without an accompanying version (e.g. a bare
+    "/usr/share/common-licenses/LGPL" pointer) are not matched -- there's no
+    reliable way to tell which version applies.
+    """
+    found: list[str] = []
+    seen: set[str] = set()
+    for pattern, prefix in _FSF_LICENSE_FAMILIES:
+        for match in pattern.finditer(content):
+            window = content[match.end(): match.end() + _FSF_WINDOW]
+            # Don't read into the next paragraph -- a license name with no
+            # version of its own (e.g. a bare common-licenses pointer) could
+            # otherwise pick up an unrelated version mentioned later on.
+            para_break = window.find("\n\n")
+            if para_break != -1:
+                window = window[:para_break]
+            version_match = _FSF_VERSION_RE.search(window)
+            if not version_match:
+                continue
+            version = _normalize_fsf_version(version_match.group(1))
+            suffix = "or-later" if _FSF_OR_LATER_RE.search(window) else "only"
+            spdx_id = f"{prefix}-{version}-{suffix}"
+            if spdx_id not in seen:
+                seen.add(spdx_id)
+                found.append(spdx_id)
+    return found
+
+
 def _is_dep5(content: str) -> bool:
     """
     True if `content` is a DEP-5 machine-readable copyright file.
@@ -166,7 +228,7 @@ def _read_package_metadata(pkg_name: str) -> tuple[list[str], str | None]:
         names, notice = _parse_dep5(content)
         return [_DEBIAN_TO_SPDX.get(n, n) for n in names], notice
 
-    return [], None
+    return _extract_fsf_licenses(content), None
 
 
 class CopyrightEnricher(Enricher):
