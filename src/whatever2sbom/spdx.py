@@ -26,6 +26,14 @@ _TOKEN_RE = re.compile(r"\(|\)|AND|OR|WITH|[^\s()]+")
 # carried in the component's `copyright` field.
 _DEP5_LICENSE_REFS: frozenset[str] = frozenset({"public-domain"})
 
+# Common Debian DEP-5 "License:" short names that are just an alternate name
+# for an SPDX-listed license (case-insensitive lookup -> canonical SPDX id).
+# "Expat" is the name the MIT license's original authors (the X Consortium /
+# MIT's X11 distribution via Expat) used, and SPDX's "MIT" id is that same text.
+_SPDX_ALIASES: dict[str, str] = {
+    "expat": "MIT",
+}
+
 
 @lru_cache(maxsize=1)
 def license_ids() -> frozenset[str]:
@@ -109,6 +117,9 @@ def classify_license(raw: str) -> dict:
     value = raw.strip()
     if is_spdx_id(value):
         return {"kind": "id", "value": value, "compliant": True}
+    alias = _SPDX_ALIASES.get(value.lower())
+    if alias:
+        return {"kind": "id", "value": alias, "compliant": True}
     if is_license_ref(value):
         return {"kind": "name", "value": value, "compliant": True}
     if is_spdx_expression(value):

@@ -89,6 +89,12 @@ def test_classify_license_dep5_public_domain() -> None:
     assert result == {"kind": "name", "value": "LicenseRef-public-domain", "compliant": True}
 
 
+def test_classify_license_expat_alias_for_mit() -> None:
+    """"Expat" is Debian's name for the MIT license text."""
+    result = classify_license("Expat")
+    assert result == {"kind": "id", "value": "MIT", "compliant": True}
+
+
 def test_classify_license_legacy_or_later() -> None:
     """"<id>+" forms not in the literal SPDX enum are valid SPDX expressions."""
     result = classify_license("GFDL-1.2+")
