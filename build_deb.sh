@@ -13,7 +13,10 @@ cd "$ROOT"
 
 PKG=whatever2sbom
 ARCH=amd64
-PYVERS=(3.11 3.12 3.13)
+# rpds-py (a jsonschema dep) ships compiled wheels per CPython minor version,
+# so this list must include whatever the target hosts run. Add new versions
+# as they're released.
+PYVERS=(3.11 3.12 3.13 3.14)
 PLATFORM=manylinux2014_x86_64
 
 rm -rf dist build/deb
