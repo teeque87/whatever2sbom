@@ -158,6 +158,11 @@ def _build_licenses(pkg: PackageRecord) -> list[dict] | None:
     A single license that is itself an SPDX expression (e.g. "MIT OR
     Apache-2.0") is emitted using the dedicated `expression` form, since
     CycloneDX does not allow mixing `expression` with `license` entries.
+
+    Each entry is marked `"acknowledgement": "declared"` per the BSI
+    "Original licences" mapping (Table 11) -- these are the licenses as
+    declared by the package, not the result of a separate concluded-license
+    analysis.
     """
     if not pkg.licenses:
         return None
@@ -165,15 +170,41 @@ def _build_licenses(pkg: PackageRecord) -> list[dict] | None:
     classified = [spdx.classify_license(lic) for lic in pkg.licenses]
 
     if len(classified) == 1 and classified[0]["kind"] == "expression":
-        return [{"expression": classified[0]["value"]}]
+        return [{"expression": classified[0]["value"], "acknowledgement": "declared"}]
 
     result: list[dict] = []
     for c in classified:
         if c["kind"] == "id":
-            result.append({"license": {"id": c["value"], "url": _spdx_license_url(c["value"])}})
+            result.append({"license": {
+                "id": c["value"],
+                "url": _spdx_license_url(c["value"]),
+                "acknowledgement": "declared",
+            }})
         else:
-            result.append({"license": {"name": c["value"]}})
+            result.append({"license": {"name": c["value"], "acknowledgement": "declared"}})
     return result
+
+
+def _build_effective_license_property(pkg: PackageRecord) -> dict | None:
+    """
+    `bsi:component:effectiveLicense` per BSI TR-03183-2 Table 12 (optional):
+    the resulting SPDX license expression for the component.
+
+    We have no separate concluded-license analysis, so this is only emitted
+    when every declared license is itself SPDX-compliant (id/expression),
+    combined with AND -- the conventional reading of "this component is
+    governed by all of these licenses together".
+    """
+    if not pkg.licenses:
+        return None
+
+    classified = [spdx.classify_license(lic) for lic in pkg.licenses]
+    if not all(c["kind"] in ("id", "expression") for c in classified):
+        return None
+
+    values = [c["value"] for c in classified]
+    expression = values[0] if len(values) == 1 else " AND ".join(f"({v})" for v in values)
+    return {"name": "bsi:component:effectiveLicense", "value": expression}
 
 
 def _build_bsi_properties(pkg: PackageRecord) -> list[dict]:
@@ -194,6 +225,11 @@ def _build_bsi_properties(pkg: PackageRecord) -> list[dict]:
     props.append({"name": "bsi:component:executable", "value": "non-executable"})
     props.append({"name": "bsi:component:archive", "value": "archive"})
     props.append({"name": "bsi:component:structured", "value": "structured"})
+
+    effective_license = _build_effective_license_property(pkg)
+    if effective_license:
+        props.append(effective_license)
+
     return props
 
 
@@ -206,6 +242,18 @@ def _build_ext_refs(pkg: PackageRecord) -> list[dict]:
     if pkg.filename:
         refs.append({"type": "distribution", "url": pkg.filename})
     return refs
+
+
+def _build_evidence(pkg: PackageRecord) -> dict | None:
+    """
+    `evidence.occurrences[].location` per CycloneDX 1.6: where the component
+    was found. For a .deb this is its pool path -- the same value used for
+    `bsi:component:filename`. Dependency Track surfaces this as the
+    component's "Filename" field, which is otherwise left empty.
+    """
+    if not pkg.filename:
+        return None
+    return {"occurrences": [{"location": pkg.filename}]}
 
 
 def _build_properties(pkg: PackageRecord) -> list[dict]:
@@ -352,6 +400,10 @@ class CycloneDXFormatter(Formatter):
         ext_refs = _build_ext_refs(pkg)
         if ext_refs:
             component["externalReferences"] = ext_refs
+
+        evidence = _build_evidence(pkg)
+        if evidence:
+            component["evidence"] = evidence
 
         props = _build_properties(pkg) + _build_bsi_properties(pkg)
         component["properties"] = props

@@ -39,7 +39,11 @@ def _compliant_package(**overrides) -> PackageRecord:
 def test_single_spdx_id_emitted_as_license_id() -> None:
     bom = _format([_compliant_package(licenses=["MIT"])])
     assert bom["components"][0]["licenses"] == [
-        {"license": {"id": "MIT", "url": "https://spdx.org/licenses/MIT.html"}}
+        {"license": {
+            "id": "MIT",
+            "url": "https://spdx.org/licenses/MIT.html",
+            "acknowledgement": "declared",
+        }}
     ]
 
 
@@ -48,13 +52,15 @@ def test_single_spdx_expression_emitted_as_expression() -> None:
         licenses=["GPL-2.0-or-later WITH Classpath-exception-2.0"]
     )])
     assert bom["components"][0]["licenses"] == [
-        {"expression": "GPL-2.0-or-later WITH Classpath-exception-2.0"}
+        {"expression": "GPL-2.0-or-later WITH Classpath-exception-2.0", "acknowledgement": "declared"}
     ]
 
 
 def test_unmapped_license_falls_back_to_name() -> None:
     bom = _format([_compliant_package(licenses=["Some made up text"])])
-    assert bom["components"][0]["licenses"] == [{"license": {"name": "Some made up text"}}]
+    assert bom["components"][0]["licenses"] == [
+        {"license": {"name": "Some made up text", "acknowledgement": "declared"}}
+    ]
 
 
 def test_no_licenses_omits_field() -> None:
@@ -86,6 +92,31 @@ def test_bsi_properties_present() -> None:
     assert props["bsi:component:executable"] == "non-executable"
     assert props["bsi:component:archive"] == "archive"
     assert props["bsi:component:structured"] == "structured"
+    assert props["bsi:component:effectiveLicense"] == "MIT"
+
+
+def test_effective_license_combines_multiple_spdx_licenses() -> None:
+    bom = _format([_compliant_package(licenses=["MIT", "Apache-2.0"])])
+    props = {p["name"]: p["value"] for p in bom["components"][0]["properties"]}
+    assert props["bsi:component:effectiveLicense"] == "(MIT) AND (Apache-2.0)"
+
+
+def test_effective_license_omitted_for_non_spdx_license() -> None:
+    bom = _format([_compliant_package(licenses=["Some made up text"])])
+    props = {p["name"]: p["value"] for p in bom["components"][0]["properties"]}
+    assert "bsi:component:effectiveLicense" not in props
+
+
+def test_evidence_occurrence_location_set_from_filename() -> None:
+    bom = _format([_compliant_package()])
+    assert bom["components"][0]["evidence"] == {
+        "occurrences": [{"location": "pool/main/f/foo/libfoo1_1.2.3-1_amd64.deb"}]
+    }
+
+
+def test_evidence_omitted_without_filename() -> None:
+    bom = _format([_compliant_package(filename=None)])
+    assert "evidence" not in bom["components"][0]
 
 
 def test_compositions_marks_dependency_completeness() -> None:
