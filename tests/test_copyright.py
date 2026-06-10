@@ -56,6 +56,22 @@ License: MIT
     assert notice == "2020 A"
 
 
+def test_parse_dep5_multiline_copyright() -> None:
+    content = """\
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+
+Files: *
+Copyright: Copyright © 2000-2008 Silicon Graphics, Inc.
+ Copyright © 1999-2001,2007-2009 Andreas Gruenbacher
+License: MIT
+"""
+    _, notice = _parse_dep5(content)
+    assert notice == (
+        "Copyright © 2000-2008 Silicon Graphics, Inc.\n"
+        "Copyright © 1999-2001,2007-2009 Andreas Gruenbacher"
+    )
+
+
 def test_debian_to_spdx_mapping() -> None:
     assert _DEBIAN_TO_SPDX["GPL-2+"] == "GPL-2.0-or-later"
     assert _DEBIAN_TO_SPDX["Apache-2"] == "Apache-2.0"

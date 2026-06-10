@@ -78,7 +78,11 @@ def _parse_dep5(content: str) -> tuple[list[str], str | None]:
 
     def _flush_field() -> None:
         if current_field:
-            current[current_field] = " ".join(current_value).strip()
+            # Preserve line breaks: a Copyright field commonly lists one
+            # holder/year range per line, and joining with spaces would
+            # smash them into an unreadable run-on. "license".split()[0]
+            # is unaffected, since str.split() treats "\n" as whitespace.
+            current[current_field] = "\n".join(current_value).strip()
 
     def _flush_stanza() -> None:
         _flush_field()
