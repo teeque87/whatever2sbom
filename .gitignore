@@ -215,3 +215,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Sample SBOMs (local testing data)
+sample-*.json
+sample-*.cdx.json
+test.cdx.json
+*.bsi-report.txt
