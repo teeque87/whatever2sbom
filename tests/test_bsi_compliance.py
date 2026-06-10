@@ -107,18 +107,6 @@ def test_effective_license_omitted_for_non_spdx_license() -> None:
     assert "bsi:component:effectiveLicense" not in props
 
 
-def test_evidence_occurrence_location_set_from_filename() -> None:
-    bom = _format([_compliant_package()])
-    assert bom["components"][0]["evidence"] == {
-        "occurrences": [{"location": "pool/main/f/foo/libfoo1_1.2.3-1_amd64.deb"}]
-    }
-
-
-def test_evidence_omitted_without_filename() -> None:
-    bom = _format([_compliant_package(filename=None)])
-    assert "evidence" not in bom["components"][0]
-
-
 def test_compositions_marks_dependency_completeness() -> None:
     bom = _format([_compliant_package()])
     assert bom["compositions"] == [{

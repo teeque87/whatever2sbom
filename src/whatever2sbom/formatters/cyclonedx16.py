@@ -239,21 +239,7 @@ def _build_ext_refs(pkg: PackageRecord) -> list[dict]:
         refs.append({"type": "website", "url": pkg.homepage})
     if pkg.bugs:
         refs.append({"type": "issue-tracker", "url": pkg.bugs})
-    if pkg.filename:
-        refs.append({"type": "distribution", "url": pkg.filename})
     return refs
-
-
-def _build_evidence(pkg: PackageRecord) -> dict | None:
-    """
-    `evidence.occurrences[].location` per CycloneDX 1.6: where the component
-    was found. For a .deb this is its pool path -- the same value used for
-    `bsi:component:filename`. Dependency Track surfaces this as the
-    component's "Filename" field, which is otherwise left empty.
-    """
-    if not pkg.filename:
-        return None
-    return {"occurrences": [{"location": pkg.filename}]}
 
 
 def _build_properties(pkg: PackageRecord) -> list[dict]:
@@ -400,10 +386,6 @@ class CycloneDXFormatter(Formatter):
         ext_refs = _build_ext_refs(pkg)
         if ext_refs:
             component["externalReferences"] = ext_refs
-
-        evidence = _build_evidence(pkg)
-        if evidence:
-            component["evidence"] = evidence
 
         props = _build_properties(pkg) + _build_bsi_properties(pkg)
         component["properties"] = props

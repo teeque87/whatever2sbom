@@ -148,9 +148,8 @@ Each component in the SBOM contains:
 - `authors` — maintainer name and email parsed from the `Maintainer` field (best-effort substitute for upstream author info, which dpkg does not track)
 - `copyright` — copyright notice from the `Files: *` stanza of the DEP-5 copyright file (when available)
 - `licenses` — SPDX identifiers extracted from the DEP-5 copyright file (when available), each with a `url` pointing to the corresponding `https://spdx.org/licenses/<id>.html` page and `acknowledgement: "declared"` per BSI TR-03183-2's "Original licences" mapping
-- `evidence.occurrences` — the `.deb` pool path, also used for `bsi:component:filename`; this is what Dependency-Track shows as the component's "Filename" in its Extended details
 - `hashes` — SHA-256, SHA-512, SHA-1, MD5 (populated by apt-cache enrichment)
-- `externalReferences` — homepage, bug tracker, pool download path
+- `externalReferences` — homepage, bug tracker
 - `properties` — additional dpkg metadata: `dpkg:section`, `dpkg:priority`, `dpkg:installed-size`, `dpkg:download-size`, `dpkg:source`, `dpkg:source-name`, `dpkg:source-version`, `dpkg:origin`, `dpkg:multi-arch`; also `bsi:component:effectiveLicense` (Table 12, optional) — the SPDX expression for all declared licenses combined with `AND`, emitted when every declared license is itself SPDX-compliant
 - `dependencies` — direct `Depends` and `Pre-Depends`, with virtual package names resolved via `Provides`
 
