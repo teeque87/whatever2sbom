@@ -1,5 +1,6 @@
 import logging
 
+from whatever2sbom import perf
 from whatever2sbom.collectors.base import Collector
 from whatever2sbom.enrichers.base import Enricher
 from whatever2sbom.formatters.base import Formatter
@@ -24,19 +25,23 @@ class SbomPipeline:
 
     def run(self) -> dict:
         logger.info("Collecting → %s", self.collector.name)
-        packages: list[PackageRecord] = self.collector.collect()
+        with perf.timed(f"collect:{self.collector.name}"):
+            packages: list[PackageRecord] = self.collector.collect()
 
         for enricher in self.enrichers:
             logger.info("Enriching → %s", enricher.name)
-            packages = enricher.enrich(packages)
+            with perf.timed(f"enrich:{enricher.name}"):
+                packages = enricher.enrich(packages)
 
         logger.info("Formatting → %s", self.formatter.name)
-        bom = self.formatter.format(packages)
+        with perf.timed(f"format:{self.formatter.name}"):
+            bom = self.formatter.format(packages)
 
         for validator in self.validators:
             logger.info("Validating → %s", validator.name)
-            errors = validator.validate(bom)
-            if errors:
-                raise ValidationError(errors)
+            with perf.timed(f"validate:{validator.name}"):
+                errors = validator.validate(bom)
+                if errors:
+                    raise ValidationError(errors)
 
         return bom

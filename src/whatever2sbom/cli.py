@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 import whatever2sbom
-from whatever2sbom import registry
+from whatever2sbom import perf, registry
 from whatever2sbom.pipeline import SbomPipeline
 from whatever2sbom.validators.base import ValidationError
 from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
@@ -73,6 +73,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "-v", "--verbose",
         action="store_true",
         help="Enable debug-level logging",
+    )
+    p.add_argument(
+        "--performance-metrics",
+        action="store_true",
+        dest="performance_metrics",
+        help="Print a timing breakdown of each pipeline stage to stderr",
     )
     p.add_argument(
         "--bsi-tr-compliant",
@@ -162,6 +168,7 @@ def _summarize_findings(findings: list[str]) -> list[tuple[str, int]]:
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    perf.enabled = args.performance_metrics
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -217,14 +224,16 @@ def main(argv: list[str] | None = None) -> None:
 
     # ── write output ──────────────────────────────────────────────────────────
     output = args.output or _default_filename(args.schema)
-    Path(output).write_text(
-        json.dumps(bom, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    with perf.timed("write-output"):
+        Path(output).write_text(
+            json.dumps(bom, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
     # ── BSI TR-03183-2 compliance report (advisory, non-fatal) ────────────────
     if args.bsi_tr_compliant:
-        findings = BsiTr03183Validator().validate(bom)
+        with perf.timed("validate:bsi-tr-03183"):
+            findings = BsiTr03183Validator().validate(bom)
         if findings:
             report_path = Path(output).with_suffix(".bsi-report.txt")
             report_path.write_text("\n".join(findings) + "\n", encoding="utf-8")
@@ -253,6 +262,9 @@ def main(argv: list[str] | None = None) -> None:
     ):
         if key in props:
             print(f"  {label:<16}: {props[key]}")
+
+    if args.performance_metrics:
+        perf.report()
 
 
 if __name__ == "__main__":

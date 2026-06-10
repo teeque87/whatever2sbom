@@ -51,6 +51,10 @@ class CycloneDXSchemaValidator(Validator):
                 Resource.from_contents(spdx_schema, default_specification=DRAFT7),
             ),
         ])
+        # Pre-crawl so $ref resolution doesn't re-scan the whole schema on
+        # every lookup (otherwise each of the ~150k $refs in a large BOM
+        # triggers a fresh crawl of the entire document).
+        registry = registry.crawl()
 
         self._validator = jsonschema.Draft7Validator(schema, registry=registry)
 
