@@ -1,0 +1,4 @@
+/* Keep `--long-option NAME` cells on a single line in reference tables. */
+.md-typeset table:not([class]) td:first-child {
+  white-space: nowrap;
+}

@@ -7,51 +7,76 @@
 
 ## Installation
 
+From a checkout:
+
 ```bash
 pip install .
 ```
 
-## Basic usage
+For development (editable install with test dependencies), see the
+[`Makefile`](https://github.com/teeque87/whatever2sbom/blob/main/Makefile) — `make venv` creates a
+`.venv` with `whatever2sbom` installed in editable mode.
 
-```
-whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
-              [-o FILE] [-v] [--bsi-tr-compliant]
-              [dpkg options]
-```
+## Your first scan
 
-### Examples
-
-Scan the local system with all enrichment enabled (default):
+The only required option is `--product-supplier` (the BSI TR-03183 "NTIA Supplier Name"):
 
 ```bash
-whatever2sbom
+whatever2sbom --product-supplier "Acme GmbH"
 ```
+
+This:
+
+1. Collects every installed `dpkg` package on the local system.
+2. Enriches each package with hashes and download metadata from `apt-cache`, and license/copyright
+   data from `/usr/share/doc/<pkg>/copyright`.
+3. Formats the result as a CycloneDX 1.6 document.
+4. Validates it against the bundled CycloneDX JSON schema (fatal on failure).
+5. Writes `sbom_<timestamp>.cdx.json` and prints a summary.
+
+## Common variations
 
 Write to a specific file:
 
 ```bash
-whatever2sbom -o /tmp/system.cdx.json
+whatever2sbom --product-supplier "Acme GmbH" -o /tmp/system.cdx.json
 ```
 
-Scan a Ubuntu system where the distro was not auto-detected correctly:
+Override the distro identifier used in package PURLs (useful if `/etc/os-release` doesn't match
+the package repository, e.g. a derivative distro):
 
 ```bash
-whatever2sbom --distro ubuntu
+whatever2sbom --product-supplier "Acme GmbH" --distro ubuntu
 ```
 
-Skip license extraction for a faster run:
+Skip license extraction for a faster run (no `/usr/share/doc/*/copyright` reads):
 
 ```bash
-whatever2sbom --no-licenses -o fast.cdx.json
+whatever2sbom --product-supplier "Acme GmbH" --no-licenses -o fast.cdx.json
 ```
 
-Verbose output to follow the pipeline:
+Skip `apt-cache` enrichment entirely — fastest option, but no hashes or download metadata:
 
 ```bash
-whatever2sbom -v
+whatever2sbom --product-supplier "Acme GmbH" --no-apt-cache --no-licenses -o minimal.cdx.json
 ```
 
-### BSI TR-03183 compliant SBOM for a firmware image
+Verbose output to follow each pipeline stage as it runs:
+
+```bash
+whatever2sbom --product-supplier "Acme GmbH" -v
+```
+
+Print a per-stage timing breakdown (collect / enrich / format / validate):
+
+```bash
+whatever2sbom --product-supplier "Acme GmbH" --performance-metrics
+```
+
+## A fully described, BSI TR-03183-compliant SBOM
+
+For firmware/product SBOMs you'll usually want to describe the product itself (so it becomes the
+root of the dependency tree) and pass `--bsi-tr-compliant` to get a compliance report:
 
 ```bash
 whatever2sbom \
@@ -62,8 +87,13 @@ whatever2sbom \
   --product-supplier-url "https://acme.example.com" \
   --product-purl "pkg:generic/acme/acmefw@2.4.1" \
   --author "Jane Doe <jane@acme.example.com>" \
+  --bsi-tr-compliant \
   -o acmefw.cdx.json
 ```
 
-See [CLI reference](cli-reference.md) for all available options and
-[Validation](validation.md) for what `--bsi-tr-compliant` checks.
+If anything is missing for full compliance (e.g. a component without an SPDX-expressible
+license), the findings are summarized on stderr and written in full to
+`acmefw.bsi-report.txt` — the SBOM is still written either way.
+
+See [CLI reference](cli-reference.md) for every available option and
+[Validation](validation.md) for what `--bsi-tr-compliant` checks and why it's advisory.

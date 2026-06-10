@@ -13,6 +13,15 @@ make bench-e2e
 | `--no-licenses` — + apt-cache hash enrichment | **9.092 s** | ± 1.279 s |
 | full pipeline — + DEP-5 copyright extraction | **8.362 s** | ± 0.269 s |
 
-The dominant cost in all three cases is `apt-cache show` (15+ subprocess calls for hash enrichment) and Python interpreter startup overhead. Pass `--no-apt-cache` when you only need package identity and don't require download hashes.
+The dominant cost in all three cases is `apt-cache show` (15+ subprocess calls for hash
+enrichment) and Python interpreter startup overhead.
 
-> See the [Go port](https://github.com/teeque87/whatever2sbom/tree/go-port) for a single static binary that runs the same pipeline **3–23× faster** with no Python runtime required.
+## Tuning tips
+
+- Pass `--no-apt-cache` when you only need package identity and don't require download hashes.
+  This is the single biggest win.
+- Pass `--no-licenses` to skip reading and parsing every package's
+  `/usr/share/doc/<pkg>/copyright` file.
+- Use `--performance-metrics` to get a per-stage timing breakdown (collect / enrich / format /
+  validate / write) for your own system, so you can see where time actually goes before deciding
+  what to skip.

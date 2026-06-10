@@ -19,12 +19,9 @@ pip install .
 ## Quick start
 
 ```bash
-whatever2sbom
+whatever2sbom --product-supplier "Acme GmbH"
 ```
 
 See the [documentation](https://teeque87.github.io/whatever2sbom/) for the full CLI reference,
-supported systems and schemas, output format, BSI TR-03183-2 compliance checking, and
-performance benchmarks.
-
-> See the [Go port](https://github.com/teeque87/whatever2sbom/tree/go-port) for a single static
-> binary that runs the same pipeline 3–23× faster with no Python runtime required.
+supported systems and schemas, output format, BSI TR-03183-2 compliance checking, performance
+benchmarks, and a guide to extending whatever2sbom with new systems or output schemas.
