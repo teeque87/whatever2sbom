@@ -279,12 +279,8 @@ def _fill_output_mapping(pkg: PackageRecord) -> None:
     pkg.bsi_archive = "archive"
     pkg.bsi_structured = "structured"
     pkg.extra_properties = _build_extra_properties(pkg)
-
-    # Original-Maintainer (the Debian packager, pre-Ubuntu rewrite) is a
-    # secondary packaging contact, not a software author — surface it as an
-    # extra supplier contact rather than as a CycloneDX "author".
-    if pkg.original_maintainer and pkg.original_maintainer != pkg.maintainer:
-        pkg.supplier_contacts = [pkg.original_maintainer]
+    # Original-Maintainer is only known after AptCacheEnricher runs (it's not
+    # in dpkg-query's output), so supplier_contacts is derived there.
 
 
 class DpkgCollector(Collector):

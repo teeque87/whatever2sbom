@@ -85,5 +85,12 @@ class AptCacheEnricher(Enricher):
                 if val:
                     setattr(pkg, field, val)
 
+            # Original-Maintainer (the Debian packager, pre-Ubuntu rewrite) is
+            # a secondary packaging contact, not a software author — surface
+            # it as an extra supplier contact rather than as a CycloneDX
+            # "author".
+            if pkg.original_maintainer and pkg.original_maintainer != pkg.maintainer:
+                pkg.supplier_contacts = [pkg.original_maintainer]
+
         logger.info("  ← %d / %d packages matched", hits, len(packages))
         return packages
