@@ -180,16 +180,12 @@ def main(argv: list[str] | None = None) -> None:
     collector = system.make_collector(args)
     enrichers = system.make_enrichers(args)
 
-    validators = [validator]
-    if args.bsi_tr_compliant:
-        validators.append(BsiTr03183Validator())
-
-    # ── run pipeline (validation is always included) ──────────────────────────
+    # ── run pipeline (schema validation is always included and fatal) ─────────
     pipeline = SbomPipeline(
         collector=collector,
         enrichers=enrichers,
         formatter=formatter,
-        validators=validators,
+        validators=[validator],
     )
 
     try:
@@ -205,6 +201,19 @@ def main(argv: list[str] | None = None) -> None:
     except RuntimeError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
+
+    # ── BSI TR-03183-2 compliance report (advisory, non-fatal) ────────────────
+    if args.bsi_tr_compliant:
+        findings = BsiTr03183Validator().validate(bom)
+        if findings:
+            print(
+                f"BSI TR-03183-2 compliance: {len(findings)} finding(s):",
+                file=sys.stderr,
+            )
+            for finding in findings:
+                print(f"  {finding}", file=sys.stderr)
+        else:
+            print("BSI TR-03183-2 compliance: no findings", file=sys.stderr)
 
     # ── write output ──────────────────────────────────────────────────────────
     output = args.output or _default_filename(args.schema)

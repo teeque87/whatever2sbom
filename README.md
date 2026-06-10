@@ -183,3 +183,11 @@ licences, SHA-512 hashes of deployable components, the properties above, and abs
 vulnerability data. This is opt-in because not every environment can supply all required data
 (e.g. a SHA-512 for every package, or a maintainer e-mail for every component) — the check
 reports exactly what's missing.
+
+This check is **advisory**: findings are printed to stderr as a compliance report, but the
+SBOM is still written even if some components don't pass. On a real system, packages with
+license metadata that isn't expressible as an SPDX identifier/expression (e.g. `"various"`,
+`"public-domain"`) will reliably show up here — the report tells you exactly which components
+and fields fall short of full compliance so you can fix what's in your control and document
+the rest. Schema validation (always on, not gated by this flag) remains fatal — that catches
+structural bugs in the SBOM itself.
