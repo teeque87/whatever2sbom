@@ -55,9 +55,23 @@ wheel: $(WHATEVER2SBOM) ## Build a distributable wheel into dist/
 	@echo "Install locally:           pip install $$(ls dist/*.whl)"
 	@echo "Transfer + install remote: scp $$(ls dist/*.whl) user@host:/tmp/ && ssh user@host pip install /tmp/$$(ls dist/*.whl | xargs basename)"
 
+.PHONY: docs-venv
+docs-venv: ## Create venv + install docs dependencies
+	$(PYTHON) -m venv $(VENV) || $(PYTHON) -m venv --copies $(VENV)
+	$(VENV_PYTHON) -m pip install --upgrade pip
+	$(VENV_PYTHON) -m pip install -e ".[docs]"
+
+.PHONY: docs-serve
+docs-serve: docs-venv ## Serve the docs site locally with live reload
+	$(VENV_BIN)/mkdocs serve
+
+.PHONY: docs-build
+docs-build: docs-venv ## Build the docs site into site/
+	$(VENV_BIN)/mkdocs build --strict
+
 .PHONY: clean
 clean: ## Remove the venv, build artefacts, and generated SBOMs
-	rm -rf $(VENV) build dist *.egg-info src/*.egg-info
+	rm -rf $(VENV) build dist site *.egg-info src/*.egg-info
 	rm -f sbom_*.cdx.json /tmp/bench-py-*.cdx.json
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type d -name .pytest_cache -prune -exec rm -rf {} +

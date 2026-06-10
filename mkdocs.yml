@@ -1,0 +1,48 @@
+site_name: whatever2sbom
+site_description: Generate a rich SBOM for whatever you throw at it
+site_url: https://teeque87.github.io/whatever2sbom/
+repo_url: https://github.com/teeque87/whatever2sbom
+repo_name: teeque87/whatever2sbom
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - CLI reference: cli-reference.md
+  - Systems and schemas: systems.md
+  - Output format: output.md
+  - Validation: validation.md
+  - Performance: performance.md
