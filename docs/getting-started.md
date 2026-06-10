@@ -7,15 +7,20 @@
 
 ## Installation
 
-From a checkout:
-
+/// tab | From a checkout
 ```bash
 pip install .
 ```
+///
 
-For development (editable install with test dependencies), see the
-[`Makefile`](https://github.com/teeque87/whatever2sbom/blob/main/Makefile) — `make venv` creates a
-`.venv` with `whatever2sbom` installed in editable mode.
+/// tab | Development
+```bash
+make venv
+```
+
+Creates a `.venv` with `whatever2sbom` installed in editable mode plus test dependencies — see the
+[`Makefile`](https://github.com/teeque87/whatever2sbom/blob/main/Makefile).
+///
 
 ## Your first scan
 
@@ -36,36 +41,45 @@ This:
 
 ## Common variations
 
-Write to a specific file:
+#### Write to a specific file
 
 ```bash
 whatever2sbom --product-supplier "Acme GmbH" -o /tmp/system.cdx.json
 ```
 
-Override the distro identifier used in package PURLs (useful if `/etc/os-release` doesn't match
-the package repository, e.g. a derivative distro):
+#### Override the distro identifier
+
+Useful if `/etc/os-release` doesn't match the package repository, e.g. a derivative distro:
 
 ```bash
 whatever2sbom --product-supplier "Acme GmbH" --distro ubuntu
 ```
 
-Skip license extraction for a faster run (no `/usr/share/doc/*/copyright` reads):
+#### Skip license extraction
+
+Faster — skips reading and parsing `/usr/share/doc/*/copyright`:
 
 ```bash
 whatever2sbom --product-supplier "Acme GmbH" --no-licenses -o fast.cdx.json
 ```
 
-Skip `apt-cache` enrichment entirely — fastest option, but no hashes or download metadata:
+#### Skip all `apt-cache` enrichment
+
+Fastest option, but no hashes or download metadata:
 
 ```bash
 whatever2sbom --product-supplier "Acme GmbH" --no-apt-cache --no-licenses -o minimal.cdx.json
 ```
 
-Verbose output to follow each pipeline stage as it runs:
+#### Verbose logging
+
+Follow each pipeline stage as it runs:
 
 ```bash
 whatever2sbom --product-supplier "Acme GmbH" -v
 ```
+
+#### Performance metrics
 
 Print a per-stage timing breakdown (collect / enrich / format / validate):
 
