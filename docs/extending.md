@@ -254,16 +254,16 @@ For a new CycloneDX release (e.g. 1.7) that mostly extends 1.6:
 2. Subclass the formatter and validator with `spec_version = "1.7"`, overriding only what actually
    changed:
 
-   ```python
-   class CycloneDXFormatter17(CycloneDXFormatter):
-       spec_version = "1.7"
+```python
+class CycloneDXFormatter17(CycloneDXFormatter):
+   spec_version = "1.7"
 
-       def format(self, packages: list[PackageRecord]) -> dict:
-           bom = super().format(packages)
-           bom["specVersion"] = "1.7"
-           # ... add/adjust whatever changed in 1.7
-           return bom
-   ```
+   def format(self, packages: list[PackageRecord]) -> dict:
+       bom = super().format(packages)
+       bom["specVersion"] = "1.7"
+       # ... add/adjust whatever changed in 1.7
+       return bom
+```
 
    `CycloneDXSchemaValidator` already derives its schema path from `spec_version`
    (`schema/cdx/bom-<spec_version>.schema.json`), so a bare subclass with just the new
@@ -271,10 +271,10 @@ For a new CycloneDX release (e.g. 1.7) that mostly extends 1.6:
 
 3. Register both:
 
-   ```python
-   register_formatter("cyclonedx", "1.7", CycloneDXFormatter17)
-   register_validator("cyclonedx", "1.7", CycloneDXSchemaValidator17)
-   ```
+```python
+register_formatter("cyclonedx", "1.7", CycloneDXFormatter17)
+register_validator("cyclonedx", "1.7", CycloneDXSchemaValidator17)
+```
 
 `--spec-version 1.7` now appears automatically in `--help` (`spec_versions_for("cyclonedx")` reads
 the registry), alongside the existing `1.6`.
