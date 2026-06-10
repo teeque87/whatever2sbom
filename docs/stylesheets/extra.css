@@ -2,3 +2,8 @@
 table td:first-child {
   white-space: nowrap;
 }
+
+/* Widen the article content area (theme default is a cramped 42rem). */
+:root {
+  --container-2xl: 48rem;
+}
