@@ -11,7 +11,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-_SPDX_SCHEMA = Path(__file__).parent / "schema" / "cdx" / "spdx.schema.json"
+_SPDX_SCHEMA = Path(__file__).parent.parent / "schema" / "cdx" / "spdx.schema.json"
 
 # "LicenseRef-<entity>-..." or "DocumentRef-<doc>:LicenseRef-<entity>-..."
 # per "Annex B. SPDX license expressions".

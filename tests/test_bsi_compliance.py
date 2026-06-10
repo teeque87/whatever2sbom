@@ -38,7 +38,7 @@ def _compliant_package(**overrides) -> PackageRecord:
     return PackageRecord(**defaults)
 
 
-# ── license emission ────────────────────────────────────────────────────────
+# license emission
 
 def test_single_spdx_id_emitted_as_license_id() -> None:
     bom = _format([_compliant_package(licenses=["MIT"])])
@@ -72,7 +72,7 @@ def test_no_licenses_omits_field() -> None:
     assert "licenses" not in bom["components"][0]
 
 
-# ── BSI properties / compositions ───────────────────────────────────────────
+# BSI properties / compositions
 
 def test_copyright_emitted_when_present() -> None:
     bom = _format([_compliant_package(copyright="2020 Jane Doe")])
@@ -162,7 +162,7 @@ def test_compositions_marks_dependency_completeness() -> None:
     }]
 
 
-# ── BsiTr03183Validator ──────────────────────────────────────────────────────
+# BsiTr03183Validator
 
 def test_fully_compliant_component_passes() -> None:
     bom = _format([_compliant_package()])

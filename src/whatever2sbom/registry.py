@@ -29,14 +29,14 @@ from whatever2sbom.formatters.base import Formatter
 from whatever2sbom.systems.base import SystemPlugin
 from whatever2sbom.validators.base import Validator
 
-# ── internal registries ───────────────────────────────────────────────────────
+# internal registries
 
 _SYSTEMS: dict[str, SystemPlugin] = {}
 _FORMATTERS: dict[tuple[str, str], type[Formatter]] = {}
 _VALIDATORS: dict[tuple[str, str], type[Validator]] = {}
 
 
-# ── registration helpers ──────────────────────────────────────────────────────
+# registration helpers
 
 def register_system(plugin: SystemPlugin) -> None:
     _SYSTEMS[plugin.name] = plugin
@@ -50,7 +50,7 @@ def register_validator(schema: str, version: str, cls: type[Validator]) -> None:
     _VALIDATORS[(schema.lower(), version)] = cls
 
 
-# ── lookup helpers ────────────────────────────────────────────────────────────
+# lookup helpers
 
 def get_system(name: str) -> SystemPlugin:
     if name not in _SYSTEMS:
@@ -91,7 +91,7 @@ def get_validator(schema: str, version: str) -> Validator:
     return _VALIDATORS[key]()
 
 
-# ── introspection helpers (used by cli.py to build dynamic choices) ───────────
+# introspection helpers (used by cli.py to build dynamic choices)
 
 def system_names() -> list[str]:
     return sorted(_SYSTEMS)
@@ -129,7 +129,7 @@ def output_extension_for(schema: str) -> str:
     return "json"
 
 
-# ── built-in registrations ────────────────────────────────────────────────────
+# built-in registrations
 # Keep these at the bottom so the functions above are defined first.
 # Schema name and spec version are read from class attributes — the class is
 # the single source of truth for its own identity.

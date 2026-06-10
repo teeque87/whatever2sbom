@@ -2,7 +2,7 @@
 
 import pytest
 
-from whatever2sbom.spdx import (
+from whatever2sbom.util.spdx import (
     classify_license,
     is_license_ref,
     is_spdx_expression,

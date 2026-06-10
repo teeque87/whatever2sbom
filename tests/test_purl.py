@@ -2,12 +2,12 @@
 
 import pytest
 
-from whatever2sbom.purl import deb, pypi, quote_version
+from whatever2sbom.util.purl import deb, pypi, quote_version
 from whatever2sbom.collectors.dpkg import _fill_purls, _resolve_distro
 from whatever2sbom.models import PackageRecord
 
 
-# ── quote_version ─────────────────────────────────────────────────────────────
+# quote_version
 
 @pytest.mark.parametrize("version, expected", [
     ("1.0",                  "1.0"),
@@ -20,7 +20,7 @@ def test_quote_version(version: str, expected: str) -> None:
     assert quote_version(version) == expected
 
 
-# ── deb() PURL builder ────────────────────────────────────────────────────────
+# deb() PURL builder
 
 @pytest.mark.parametrize("distro,name,version,arch,codename,expected", [
     ("ubuntu", "poppler", "26.01.0-2build2", "source", "resolute",
@@ -40,7 +40,7 @@ def test_deb(distro, name, version, arch, codename, expected):
     assert deb(distro, name, version, arch, codename) == expected
 
 
-# ── pypi() PURL builder ──────────────────────────────────────────────────────────
+# pypi() PURL builder
 
 @pytest.mark.parametrize("name,version,expected", [
     ("flask",    "3.1.0",  "pkg:pypi/flask@3.1.0"),
@@ -50,7 +50,7 @@ def test_pypi(name, version, expected):
     assert pypi(name, version) == expected
 
 
-# ── _resolve_distro ───────────────────────────────────────────────────────────
+# _resolve_distro
 
 @pytest.mark.parametrize("override,os_info,want_distro,want_codename", [
     ("ubuntu", {"id": "debian", "version_codename": "bookworm"}, "ubuntu", "bookworm"),
@@ -63,7 +63,7 @@ def test_resolve_distro(override, os_info, want_distro, want_codename):
     assert codename == want_codename
 
 
-# ── _fill_purls ───────────────────────────────────────────────────────────────
+# _fill_purls
 
 @pytest.mark.parametrize("pkg,want_purl,want_bom_ref", [
     (

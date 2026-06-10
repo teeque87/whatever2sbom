@@ -9,7 +9,7 @@ from packaging.requirements import Requirement
 
 from whatever2sbom.collectors.base import Collector
 from whatever2sbom.models import PackageRecord
-from whatever2sbom import purl as _purl
+from whatever2sbom.util import purl as _purl
 
 logger = logging.getLogger(__name__)
 

@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 from pathlib import PurePosixPath
 
 import whatever2sbom
-from whatever2sbom import spdx
-from whatever2sbom._os import get_os_info
 from whatever2sbom.formatters.base import Formatter
 from whatever2sbom.models import PackageRecord
+from whatever2sbom.util import spdx
+from whatever2sbom.util.os_release import get_os_info
 
 
 _NAME_NORMALIZE_RE = re.compile(r"[-_.]+")
@@ -21,7 +21,7 @@ def _normalize_component_name(name: str) -> str:
     return _NAME_NORMALIZE_RE.sub("-", name).lower()
 
 
-# ── component field builders ──────────────────────────────────────────────────
+# component field builders
 
 def _parse_name_email(raw: str) -> tuple[str, str | None]:
     """Split "Name <email>" into (name, email | None)."""
@@ -201,7 +201,7 @@ def _build_extra_properties(pkg: PackageRecord) -> list[dict]:
     return [{"name": name, "value": value} for name, value in pkg.extra_properties]
 
 
-# ── formatter ─────────────────────────────────────────────────────────────────
+# formatter
 
 class CycloneDXFormatter(Formatter):
     """Produce a CycloneDX 1.6 BOM from a list of PackageRecords."""
@@ -293,7 +293,7 @@ class CycloneDXFormatter(Formatter):
             return False
         return _normalize_component_name(pkg.name) == _normalize_component_name(self._product_name)
 
-    # ── private helpers ───────────────────────────────────────────────────────
+    # private helpers
 
     def _root_bom_ref(self) -> str | None:
         """bom-ref of metadata.component — used as the single root of the dep tree.

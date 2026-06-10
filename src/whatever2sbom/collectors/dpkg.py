@@ -2,14 +2,14 @@ import logging
 import re
 import subprocess
 
-from whatever2sbom._os import get_os_info
 from whatever2sbom.collectors.base import Collector
 from whatever2sbom.models import PackageRecord
-from whatever2sbom import purl as _purl
+from whatever2sbom.util import purl as _purl
+from whatever2sbom.util.os_release import get_os_info
 
 logger = logging.getLogger(__name__)
 
-# ── CycloneDX type/scope mapping (dpkg ${Section}/${Priority}/${Essential}) ───
+# CycloneDX type/scope mapping (dpkg ${Section}/${Priority}/${Essential})
 
 _LIBRARY_SECTIONS = frozenset({
     "libs", "libdevel", "python", "perl", "ruby",
@@ -39,7 +39,7 @@ def _map_scope(pkg: PackageRecord) -> str:
     return "optional"
 
 
-# ── extra (dpkg:*) properties ──────────────────────────────────────────────────
+# extra (dpkg:*) properties
 
 _EXTRA_PROPERTY_FIELDS: list[tuple[str, str]] = [
     ("section",        "dpkg:section"),
@@ -62,7 +62,7 @@ def _build_extra_properties(pkg: PackageRecord) -> list[tuple[str, str]]:
     ]
 
 
-# ── dependency graph (Depends/Pre-Depends/Provides) ────────────────────────────
+# dependency graph (Depends/Pre-Depends/Provides)
 
 def _normalize_dep_name(token: str) -> str:
     """Strip version constraints, arch filters, arch qualifiers from one token."""

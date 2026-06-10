@@ -1,10 +1,10 @@
 import logging
 
-from whatever2sbom import perf
 from whatever2sbom.collectors.base import Collector
 from whatever2sbom.enrichers.base import Enricher
 from whatever2sbom.formatters.base import Formatter
 from whatever2sbom.models import PackageRecord
+from whatever2sbom.util import perf
 from whatever2sbom.validators.base import ValidationError, Validator
 
 logger = logging.getLogger(__name__)

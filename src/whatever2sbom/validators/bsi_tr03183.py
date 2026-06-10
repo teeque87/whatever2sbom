@@ -11,7 +11,7 @@ creator e-mail/URL, SHA-512 hashes).
 
 import logging
 
-from whatever2sbom import spdx
+from whatever2sbom.util import spdx
 from whatever2sbom.validators.base import Validator
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ class BsiTr03183Validator(Validator):
             logger.info("  ← BSI TR-03183-2 check passed")
         return errors
 
-    # ── SBOM level (§5.2.1, §4) ──────────────────────────────────────────────
+    # SBOM level (§5.2.1, §4)
 
     def _check_format(self, bom: dict) -> list[str]:
         errors: list[str] = []
@@ -136,7 +136,7 @@ class BsiTr03183Validator(Validator):
 
         return errors
 
-    # ── component level (§5.2.2, §3.2.2) ─────────────────────────────────────
+    # component level (§5.2.2, §3.2.2)
 
     def _check_logical_component(self, comp: dict, where: str) -> list[str]:
         """Logical component (e.g. metadata.component) — relaxed §3.2.2 field set."""

@@ -6,17 +6,17 @@ from typing import Optional
 class PackageRecord:
     """Uniform representation of a package from any source."""
 
-    # ── identity ──────────────────────────────────────────────────────────────
+    # identity
     name: str
     version: str
     architecture: Optional[str] = None
 
-    # ── classification (drives CycloneDX type / scope) ────────────────────────
+    # classification (drives CycloneDX type / scope)
     section: Optional[str] = None
     priority: Optional[str] = None
     essential: Optional[str] = None
 
-    # ── provenance ────────────────────────────────────────────────────────────
+    # provenance
     source: Optional[str] = None        # raw dpkg ${Source} field (may be "name (version)" or empty)
     source_name: Optional[str] = None   # resolved source package name (${source:Package})
     source_version: Optional[str] = None  # resolved source version incl. epoch (${source:Version})
@@ -24,33 +24,33 @@ class PackageRecord:
     maintainer: Optional[str] = None   # "Name <email>" — primary supplier + contact
     original_maintainer: Optional[str] = None  # Debian Original-Maintainer (pre-Ubuntu rewrite)
 
-    # ── references ────────────────────────────────────────────────────────────
+    # references
     homepage: Optional[str] = None
     bugs: Optional[str] = None
 
-    # ── dependency graph ──────────────────────────────────────────────────────
+    # dependency graph
     depends: Optional[str] = None
     pre_depends: Optional[str] = None
     provides: Optional[str] = None     # virtual package names this pkg satisfies
 
-    # ── content ───────────────────────────────────────────────────────────────
+    # content
     description: Optional[str] = None
 
-    # ── size ──────────────────────────────────────────────────────────────────
+    # size
     installed_size: Optional[str] = None   # KiB on disk
     size: Optional[str] = None             # download size in bytes
 
-    # ── hashes (sha1 / sha512 come from apt-cache enrichment) ─────────────────
+    # hashes (sha1 / sha512 come from apt-cache enrichment)
     md5sum: Optional[str] = None
     sha1: Optional[str] = None
     sha256: Optional[str] = None
     sha512: Optional[str] = None
 
-    # ── package metadata ──────────────────────────────────────────────────────
+    # package metadata
     filename: Optional[str] = None     # pool-relative .deb path
     multi_arch: Optional[str] = None
 
-    # ── enriched fields ───────────────────────────────────────────────────────
+    # enriched fields
     licenses: list[str] = field(default_factory=list)
     copyright: Optional[str] = None     # copyright notice from DEP-5 copyright file
 
@@ -63,7 +63,7 @@ class PackageRecord:
     purl: Optional[str] = None
     bom_ref: Optional[str] = None
 
-    # ── output mapping (computed by the collector, emitted verbatim) ──────────
+    # output mapping (computed by the collector, emitted verbatim)
     # Ecosystem-specific classification/parsing rules live in the collector, so
     # formatters stay generic across ecosystems (deb, pip, npm, ...).
     component_type: str = "library"   # CycloneDX component "type"

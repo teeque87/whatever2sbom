@@ -20,8 +20,9 @@ from datetime import datetime
 from pathlib import Path
 
 import whatever2sbom
-from whatever2sbom import perf, registry
+from whatever2sbom import registry
 from whatever2sbom.pipeline import SbomPipeline
+from whatever2sbom.util import perf
 from whatever2sbom.validators.base import ValidationError
 from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
 
@@ -42,7 +43,7 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    # ── global scan / output options ──────────────────────────────────────────
+    # global scan / output options
     p.add_argument(
         "--system",
         choices=systems,
@@ -91,7 +92,7 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    # ── product metadata (BSI TR-03183) ──────────────────────────────────────
+    # product metadata (BSI TR-03183)
     prod = p.add_argument_group(
         "product metadata",
         "Describe the product/firmware being scanned (required for BSI TR-03183 compliance).",
@@ -141,7 +142,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="SBOM author in 'Name <email>' format (may be given multiple times)",
     )
 
-    # ── system-specific option groups ─────────────────────────────────────────
+    # system-specific option groups
     # Each registered SystemPlugin declares its own arguments here, so the CLI
     # stays clean when new systems are added.
     for name in systems:
@@ -190,7 +191,7 @@ def main(argv: list[str] | None = None) -> None:
         handlers=[handler],
     )
 
-    # ── resolve pipeline components ───────────────────────────────────────────
+    # resolve pipeline components
     try:
         system    = registry.get_system(args.system)
 
@@ -227,7 +228,7 @@ def main(argv: list[str] | None = None) -> None:
     collector = system.make_collector(args)
     enrichers = system.make_enrichers(args)
 
-    # ── run pipeline (schema validation is always included and fatal) ─────────
+    # run pipeline (schema validation is always included and fatal)
     pipeline = SbomPipeline(
         collector=collector,
         enrichers=enrichers,
@@ -249,7 +250,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # ── write output ──────────────────────────────────────────────────────────
+    # write output
     output = args.output or _default_filename(args.schema)
     with perf.timed("write-output"):
         Path(output).write_text(
@@ -257,7 +258,7 @@ def main(argv: list[str] | None = None) -> None:
             encoding="utf-8",
         )
 
-    # ── BSI TR-03183-2 compliance report (advisory, non-fatal) ────────────────
+    # BSI TR-03183-2 compliance report (advisory, non-fatal)
     if args.bsi_tr_compliant:
         with perf.timed("validate:bsi-tr-03183"):
             findings = BsiTr03183Validator().validate(bom)
@@ -275,7 +276,7 @@ def main(argv: list[str] | None = None) -> None:
         else:
             print("BSI TR-03183-2 compliance: no findings", file=sys.stderr)
 
-    # ── summary ───────────────────────────────────────────────────────────────
+    # summary
     meta  = bom.get("metadata", {})
     props = {p["name"]: p["value"] for p in meta.get("properties", [])}
 

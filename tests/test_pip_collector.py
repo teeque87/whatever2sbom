@@ -20,7 +20,7 @@ from whatever2sbom.models import PackageRecord
 from packaging.requirements import Requirement
 
 
-# ── _normalize (PEP 503) ────────────────────────────────────────────────────────
+# _normalize (PEP 503)
 
 @pytest.mark.parametrize("raw, expected", [
     ("Flask",        "flask"),
@@ -33,7 +33,7 @@ def test_normalize(raw: str, expected: str) -> None:
     assert _normalize(raw) == expected
 
 
-# ── _fill_purls ──────────────────────────────────────────────────────────────────
+# _fill_purls
 
 def test_fill_purls() -> None:
     pkg = PackageRecord(name="Flask_Foo", version="1.0")
@@ -42,7 +42,7 @@ def test_fill_purls() -> None:
     assert pkg.bom_ref == "pkg:pypi/flask-foo@1.0"
 
 
-# ── _find_venv ───────────────────────────────────────────────────────────────────
+# _find_venv
 
 def test_find_venv_explicit(tmp_path) -> None:
     venv = tmp_path / "myenv"
@@ -116,7 +116,7 @@ def test_find_venv_ignores_virtual_env_var_when_no_local_venv(tmp_path, monkeypa
         _find_venv(None, str(project))
 
 
-# ── dependency resolution ─────────────────────────────────────────────────────────
+# dependency resolution
 
 class _FakeDistribution:
     """Minimal stand-in for importlib.metadata.Distribution."""
@@ -193,7 +193,7 @@ def test_resolve_dependencies_skips_unmatched_marker() -> None:
     assert foo.dependency_refs == []
 
 
-# ── license resolution ───────────────────────────────────────────────────────────
+# license resolution
 
 def _meta(**headers: str) -> Message:
     meta = Message()
@@ -247,7 +247,7 @@ def test_to_record_sets_license_from_expression() -> None:
     assert pkg.licenses == ["MIT"]
 
 
-# ── license recognition from a bundled License-File ──────────────────────────────
+# license recognition from a bundled License-File
 
 _MIT_TEXT = (
     "MIT License\n\nCopyright (c) 2026 someone\n\n"
@@ -302,7 +302,7 @@ def test_license_file_legacy_location() -> None:
     assert _license(meta, dist) == "MIT"
 
 
-# ── Project-URL parsing ───────────────────────────────────────────────────────────
+# Project-URL parsing
 
 def _meta_with_project_urls(*entries: str) -> Message:
     meta = Message()
