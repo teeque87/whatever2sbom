@@ -58,7 +58,7 @@ This writes `sbom_<timestamp>.cdx.json` in the current directory and prints a sh
 
 - [Getting started](getting-started.md) — installation and a first scan
 - [CLI reference](cli-reference.md) — all flags and product metadata options
-- [Systems and schemas](systems.md) — what whatever2sbom can scan and emit
+- [Systems and schemas](systems/index.md) — what whatever2sbom can scan and emit
 - [Output format](output.md) — what ends up in the generated SBOM
 - [Validation](validation.md) — schema validation and BSI TR-03183-2 compliance
 - [Architecture](architecture.md) — how a scan flows through the pipeline

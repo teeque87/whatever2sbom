@@ -63,8 +63,8 @@ is the unit of "an ecosystem you can scan". It has four jobs:
 - declare the default CycloneDX component type for `metadata.component` (`default_product_type`)
 
 The built-in `DpkgSystem` registers `--distro`, `--no-apt-cache`, and `--no-licenses`, builds a
-`DpkgCollector`, conditionally adds `AptCacheEnricher` and `CopyrightEnricher`, and defaults
-`default_product_type` to `"firmware"`.
+`DpkgCollector`, conditionally adds `AptCacheEnricher` and `CopyrightEnricher`, and inherits the
+base `default_product_type` of `"operating-system"`.
 
 `PipSystem` registers `--venv-dir` and `--project-dir`, builds a `PipCollector` (which resolves
 licenses and the dependency graph itself, so it has no enrichers), and defaults

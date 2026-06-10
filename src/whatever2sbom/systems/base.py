@@ -36,10 +36,22 @@ class SystemPlugin(ABC):
 
     @property
     def default_product_type(self) -> str:
-        """CycloneDX component type for metadata.component when --product-type
-        is not given. Override for ecosystems where "firmware" doesn't fit
-        (e.g. "application" for a pip virtualenv)."""
-        return "firmware"
+        """CycloneDX component type for metadata.component when --product-name
+        is given but --product-type is not. Override for ecosystems where
+        "operating-system" doesn't fit (e.g. "application" for a pip
+        virtualenv)."""
+        return "operating-system"
+
+    @property
+    def scans_host_os(self) -> bool:
+        """True if the thing being scanned *is* the host operating system, so
+        metadata.component can fall back to describing it (from
+        /etc/os-release) when --product-name is not given.
+
+        False for systems (e.g. pip, scanning one virtualenv) where the
+        scanned thing isn't the host OS -- describing the host OS there would
+        be misleading, so metadata.component is omitted instead."""
+        return False
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """

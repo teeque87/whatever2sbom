@@ -1,10 +1,14 @@
 # Getting started
 
+This page covers the default `--system dpkg` (Debian/Ubuntu). For scanning a Python virtualenv
+instead, see [the `pip` system page](systems/pip.md) — everything below still applies to it
+conceptually (output format, validation, BSI compliance), just with `--system pip` and that
+system's own options.
+
 ## Requirements
 
 - Python 3.11+
-- Linux with `dpkg` (Debian / Ubuntu) for `--system dpkg`
-- A virtualenv (created with `pyvenv.cfg`, e.g. via `python -m venv` or `uv venv`) for `--system pip`
+- Linux with `dpkg` (Debian / Ubuntu)
 
 ## Installation
 
@@ -36,7 +40,8 @@ This:
 1. Collects every installed `dpkg` package on the local system.
 2. Enriches each package with hashes and download metadata from `apt-cache`, and license/copyright
    data from `/usr/share/doc/<pkg>/copyright`.
-3. Formats the result as a CycloneDX 1.6 document.
+3. Formats the result as a CycloneDX 1.6 document. `metadata.component` describes the local OS
+   itself (type `operating-system`, from `/etc/os-release`) since no `--product-name` was given.
 4. Validates it against the bundled CycloneDX JSON schema (fatal on failure).
 5. Writes `sbom_<timestamp>.cdx.json` and prints a summary.
 
@@ -88,41 +93,13 @@ Print a per-stage timing breakdown (collect / enrich / format / validate):
 whatever2sbom --product-supplier "Acme GmbH" --performance-metrics
 ```
 
-## Scanning a Python project (`--system pip`)
-
-Run from the project root — the virtualenv is auto-detected by looking for `pyvenv.cfg`:
-
-```bash
-whatever2sbom --system pip --product-supplier "Acme GmbH"
-```
-
-This scans the venv's `site-packages` via `importlib.metadata` and resolves the dependency graph
-from each package's `Requires-Dist` metadata — no `requirements.txt` parsing involved.
-
-To describe the project itself as the product (so it becomes the root of the dependency tree, and
-its own `Requires-Dist` becomes the root's direct dependencies):
-
-```bash
-whatever2sbom --system pip \
-  --product-name myproject \
-  --product-version "$(myproject --version)" \
-  --product-supplier "Acme GmbH" \
-  -o myproject.cdx.json
-```
-
-If the venv can't be auto-detected (e.g. multiple venvs under the project, or it lives elsewhere),
-pass it explicitly:
-
-```bash
-whatever2sbom --system pip --venv-dir /path/to/.venv --product-supplier "Acme GmbH"
-```
-
-`--product-type` defaults to `application` for `--system pip` (vs. `firmware` for `dpkg`).
-
 ## A fully described, BSI TR-03183-compliant SBOM
 
-For firmware/product SBOMs you'll usually want to describe the product itself (so it becomes the
-root of the dependency tree) and pass `--bsi-tr-compliant` to get a compliance report:
+For product SBOMs you'll usually want to describe the product itself (so it becomes the root of
+the dependency tree) and pass `--bsi-tr-compliant` to get a compliance report. With
+`--product-name` set, `metadata.component`'s type defaults to `operating-system` for
+`--system dpkg`; pass `--product-type firmware` if the scanned system is itself a firmware/
+appliance image:
 
 ```bash
 whatever2sbom \

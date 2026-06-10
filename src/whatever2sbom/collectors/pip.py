@@ -72,15 +72,17 @@ def _find_venv(venv_dir: str | None, project_dir: str) -> Path:
     canonical marker (PEP 405) regardless of how the venv directory is named,
     so auto-discovery scans for it instead of relying on conventional names
     like ".venv".
+
+    $VIRTUAL_ENV is deliberately NOT consulted: whatever2sbom itself is often
+    run from inside its own virtualenv, which would shadow the *target*
+    project's venv. Resolution is strictly: explicit --venv-dir, then
+    auto-discovery under --project-dir, then a fatal error.
     """
     if venv_dir:
         p = Path(venv_dir)
         if not (p / "pyvenv.cfg").is_file():
             raise RuntimeError(f"{p} does not look like a virtualenv (no pyvenv.cfg)")
         return p
-
-    if env_var := os.environ.get("VIRTUAL_ENV"):
-        return Path(env_var)
 
     base = Path(project_dir)
     if (base / "pyvenv.cfg").is_file():
@@ -99,7 +101,7 @@ def _find_venv(venv_dir: str | None, project_dir: str) -> Path:
 
     raise RuntimeError(
         f"No virtualenv found under {base} (no pyvenv.cfg in it or any immediate "
-        "subdirectory) and $VIRTUAL_ENV is not set. Pass --venv-dir explicitly."
+        "subdirectory). Pass --venv-dir explicitly."
     )
 
 

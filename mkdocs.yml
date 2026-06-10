@@ -31,7 +31,10 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - CLI reference: cli-reference.md
-  - Systems and schemas: systems.md
+  - Systems and schemas:
+      - Overview: systems/index.md
+      - dpkg: systems/dpkg.md
+      - pip: systems/pip.md
   - Output format: output.md
   - Validation: validation.md
   - Architecture: architecture.md

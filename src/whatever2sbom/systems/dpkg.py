@@ -13,6 +13,7 @@ class DpkgSystem(SystemPlugin):
 
     name = "dpkg"
     description = "Debian/Ubuntu system packages (dpkg-query + apt-cache enrichment)"
+    scans_host_os = True
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         grp = parser.add_argument_group("dpkg system options")

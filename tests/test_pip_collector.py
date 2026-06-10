@@ -58,11 +58,16 @@ def test_find_venv_explicit_missing_cfg(tmp_path) -> None:
         _find_venv(str(venv), str(tmp_path))
 
 
-def test_find_venv_virtual_env_var(tmp_path, monkeypatch) -> None:
-    venv = tmp_path / "elsewhere"
+def test_find_venv_explicit_ignores_virtual_env_var(tmp_path, monkeypatch) -> None:
+    """$VIRTUAL_ENV must never override an explicit --venv-dir."""
+    venv = tmp_path / "myenv"
     venv.mkdir()
-    monkeypatch.setenv("VIRTUAL_ENV", str(venv))
-    assert _find_venv(None, str(tmp_path)) == venv
+    (venv / "pyvenv.cfg").write_text("")
+    other = tmp_path / "tool-venv"
+    other.mkdir()
+    (other / "pyvenv.cfg").write_text("")
+    monkeypatch.setenv("VIRTUAL_ENV", str(other))
+    assert _find_venv(str(venv), str(tmp_path)) == venv
 
 
 def test_find_venv_project_dir_is_venv(tmp_path, monkeypatch) -> None:
@@ -94,6 +99,21 @@ def test_find_venv_none_found(tmp_path, monkeypatch) -> None:
     monkeypatch.delenv("VIRTUAL_ENV", raising=False)
     with pytest.raises(RuntimeError, match="No virtualenv found"):
         _find_venv(None, str(tmp_path))
+
+
+def test_find_venv_ignores_virtual_env_var_when_no_local_venv(tmp_path, monkeypatch) -> None:
+    """A venv active via $VIRTUAL_ENV (e.g. whatever2sbom's own) must not be
+    picked up for the *target* project when --venv-dir/--project-dir don't
+    point at it."""
+    other = tmp_path / "tool-venv"
+    other.mkdir()
+    (other / "pyvenv.cfg").write_text("")
+    monkeypatch.setenv("VIRTUAL_ENV", str(other))
+
+    project = tmp_path / "project"
+    project.mkdir()
+    with pytest.raises(RuntimeError, match="No virtualenv found"):
+        _find_venv(None, str(project))
 
 
 # ── dependency resolution ─────────────────────────────────────────────────────────

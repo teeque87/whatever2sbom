@@ -219,11 +219,12 @@ class CycloneDXFormatter(Formatter):
         distro: str | None = None,
         product_name: str | None = None,
         product_version: str | None = None,
-        product_type: str = "firmware",
+        product_type: str = "operating-system",
         product_supplier: str | None = None,
         product_supplier_url: list[str] | None = None,
         product_purl: str | None = None,
         authors: list[str] | None = None,
+        describe_os: bool = True,
     ) -> None:
         self._distro              = distro
         self._product_name        = product_name
@@ -233,6 +234,7 @@ class CycloneDXFormatter(Formatter):
         self._product_supplier_url = product_supplier_url or []
         self._product_purl        = product_purl
         self._authors             = authors or []
+        self._describe_os         = describe_os
 
     def format(self, packages: list[PackageRecord]) -> dict:
         os_info  = get_os_info()
@@ -256,7 +258,8 @@ class CycloneDXFormatter(Formatter):
         ]
         product_pkg = next((p for p in packages if self._is_product_component(p)), None)
         root_deps = product_pkg.dependency_refs if product_pkg is not None else pkg_refs
-        dependencies.insert(0, {"ref": root_ref, "dependsOn": root_deps})
+        if root_ref is not None:
+            dependencies.insert(0, {"ref": root_ref, "dependsOn": root_deps})
 
         return {
             "bomFormat":    "CycloneDX",
@@ -269,7 +272,7 @@ class CycloneDXFormatter(Formatter):
             "compositions": self._build_compositions(root_ref, pkg_refs),
         }
 
-    def _build_compositions(self, root_ref: str, pkg_refs: list[str]) -> list[dict]:
+    def _build_compositions(self, root_ref: str | None, pkg_refs: list[str]) -> list[dict]:
         """
         Indicate dependency-completeness per BSI TR-03183-2 §5.2.2.
 
@@ -278,9 +281,10 @@ class CycloneDXFormatter(Formatter):
         resolution, so the recorded dependency graph cannot be asserted as
         "complete" — it is explicitly marked "unknown".
         """
+        dependencies = [root_ref, *pkg_refs] if root_ref is not None else pkg_refs
         return [{
             "aggregate": "unknown",
-            "dependencies": [root_ref, *pkg_refs],
+            "dependencies": dependencies,
         }]
 
     def _is_product_component(self, pkg: PackageRecord) -> bool:
@@ -291,12 +295,18 @@ class CycloneDXFormatter(Formatter):
 
     # ── private helpers ───────────────────────────────────────────────────────
 
-    def _root_bom_ref(self) -> str:
-        """bom-ref of metadata.component — used as the single root of the dep tree."""
+    def _root_bom_ref(self) -> str | None:
+        """bom-ref of metadata.component — used as the single root of the dep tree.
+
+        Returns None when metadata.component is omitted (no product
+        described and the scanned thing isn't the host OS).
+        """
         if self._product_purl:
             return self._product_purl
         if self._product_name:
             return f"product:{self._product_name}"
+        if not self._describe_os:
+            return None
         return "os-component"
 
     def _build_component(self, pkg: PackageRecord) -> dict:
@@ -368,15 +378,19 @@ class CycloneDXFormatter(Formatter):
                     "version": whatever2sbom.__version__,
                 }]
             },
-            "component": self._build_metadata_component(os_info, distro),
-            "properties": [
-                {"name": "sbom:total-components",     "value": str(total)},
-                {"name": "sbom:hash-coverage",        "value": str(hash_coverage)},
-                {"name": "sbom:hash-coverage-pct",    "value": f"{hash_coverage / total * 100:.1f}%" if total else "0%"},
-                {"name": "sbom:license-coverage",     "value": str(license_coverage)},
-                {"name": "sbom:license-coverage-pct", "value": f"{license_coverage / total * 100:.1f}%" if total else "0%"},
-            ],
         }
+
+        component = self._build_metadata_component(os_info, distro)
+        if component is not None:
+            metadata["component"] = component
+
+        metadata["properties"] = [
+            {"name": "sbom:total-components",     "value": str(total)},
+            {"name": "sbom:hash-coverage",        "value": str(hash_coverage)},
+            {"name": "sbom:hash-coverage-pct",    "value": f"{hash_coverage / total * 100:.1f}%" if total else "0%"},
+            {"name": "sbom:license-coverage",     "value": str(license_coverage)},
+            {"name": "sbom:license-coverage-pct", "value": f"{license_coverage / total * 100:.1f}%" if total else "0%"},
+        ]
 
         supplier: dict = {"name": self._product_supplier}
         if self._product_supplier_url:
@@ -389,8 +403,14 @@ class CycloneDXFormatter(Formatter):
 
         return metadata
 
-    def _build_metadata_component(self, os_info: dict[str, str], distro: str) -> dict:
-        """Return the metadata.component — product if specified, else OS fallback."""
+    def _build_metadata_component(self, os_info: dict[str, str], distro: str) -> dict | None:
+        """Return the metadata.component — product if specified, else OS fallback.
+
+        Returns None if neither a product nor the host OS is being described
+        (e.g. --system pip without --product-name): metadata.component is
+        optional per the CycloneDX schema, and falling back to the host OS
+        there would misrepresent a venv as the operating system.
+        """
         if self._product_name:
             comp: dict = {
                 "type":    self._product_type,
@@ -407,6 +427,9 @@ class CycloneDXFormatter(Formatter):
                     supplier["url"] = self._product_supplier_url
                 comp["supplier"] = supplier
             return comp
+
+        if not self._describe_os:
+            return None
 
         # Fallback: describe the OS that was scanned
         os_comp: dict = {

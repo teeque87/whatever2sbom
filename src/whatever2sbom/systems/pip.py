@@ -21,8 +21,7 @@ class PipSystem(SystemPlugin):
             default=None,
             help=(
                 "Path to the virtualenv to scan (default: auto-detect a "
-                "directory containing pyvenv.cfg under --project-dir, or "
-                "$VIRTUAL_ENV)"
+                "directory containing pyvenv.cfg under --project-dir)"
             ),
         )
         grp.add_argument(

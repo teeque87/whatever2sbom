@@ -112,8 +112,8 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "CycloneDX component type for the product "
-            "(firmware | application | container | device | …)  "
-            "(default: depends on --system, e.g. firmware for dpkg, application for pip)"
+            "(firmware | application | container | device | operating-system | …)  "
+            "(default: depends on --system, e.g. operating-system for dpkg, application for pip)"
         ),
     )
     prod.add_argument(
@@ -179,7 +179,8 @@ class _LevelFormatter(logging.Formatter):
 
 
 def main(argv: list[str] | None = None) -> None:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
     perf.enabled = args.performance_metrics
 
     handler = logging.StreamHandler(sys.stderr)
@@ -192,6 +193,17 @@ def main(argv: list[str] | None = None) -> None:
     # ── resolve pipeline components ───────────────────────────────────────────
     try:
         system    = registry.get_system(args.system)
+
+        # Systems that don't scan the host OS (e.g. pip, scanning a venv)
+        # have no fallback subject for metadata.component, so --product-name
+        # must be given explicitly -- unlike dpkg, where the host OS itself
+        # serves as the default subject.
+        if not system.scans_host_os and not args.product_name:
+            parser.error(
+                f"--product-name is required for --system {args.system} "
+                "(it cannot fall back to describing the host OS)"
+            )
+
         product_type = args.product_type or system.default_product_type
         # Forward all parsed args as kwargs; registry filters to accepted params.
         formatter = registry.get_formatter(
@@ -205,6 +217,7 @@ def main(argv: list[str] | None = None) -> None:
             product_supplier_url=args.product_supplier_url or [],
             product_purl=args.product_purl,
             authors=args.author or [],
+            describe_os=system.scans_host_os,
         )
         validator = registry.get_validator(args.schema, args.spec_version)
     except ValueError as exc:

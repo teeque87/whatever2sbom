@@ -13,8 +13,8 @@ whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
 
 | Option | Default | Description |
 |---|---|---|
-| `--system SYSTEM` | `dpkg` | What to scan: `dpkg` or `pip`. See [Systems](systems.md). |
-| `--schema FORMAT` | `cyclonedx` | Output schema format. See [Schemas](systems.md#schemas). |
+| `--system SYSTEM` | `dpkg` | What to scan: `dpkg` or `pip`. See [Systems](systems/index.md). |
+| `--schema FORMAT` | `cyclonedx` | Output schema format. See [Schemas](systems/index.md#schemas). |
 | `--spec-version VERSION` | `1.6` | Spec version of the chosen schema. |
 | `-o`, `--output FILE` | `sbom_<timestamp>.<ext>` | Output file path. Extension is chosen by the formatter (`.cdx.json` for CycloneDX). |
 | `-v`, `--verbose` | off | Enable debug-level logging to stderr. |
@@ -24,15 +24,19 @@ whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
 ## Product metadata (BSI TR-03183)
 
 These describe the product or firmware image the SBOM is *about*, as opposed to the components
-found inside it. `--product-supplier` is required; the rest are optional but recommended for BSI
-TR-03183 compliance. When `--product-purl` is set, the product is also added as the root node of
-the dependency tree.
+found inside it. `--product-supplier` is required for every system; the rest are optional but
+recommended for BSI TR-03183 compliance. When `--product-purl` is set, the product is also added
+as the root node of the dependency tree.
+
+`--product-name` is additionally **required for systems that don't scan the host OS** (currently
+`pip`) — without it, there's nothing for `metadata.component` to describe, since (unlike `dpkg`)
+the scanned thing isn't the host OS and can't fall back to `/etc/os-release`.
 
 | Option | Description |
 |---|---|
-| `--product-name NAME` | Name of the product or firmware image being described. |
+| `--product-name NAME` | Name of the product or firmware image being described. Optional for `dpkg` (falls back to describing the host OS); **required** for `pip`. |
 | `--product-version VERSION` | Version of the product. |
-| `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, …). Default depends on `--system`: `firmware` for `dpkg`, `application` for `pip`. |
+| `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, `operating-system`, …) for `metadata.component` *when `--product-name` is set*. Default depends on `--system`: `operating-system` for `dpkg`, `application` for `pip`. (For `dpkg` without `--product-name`, `metadata.component` describes the host OS, type `operating-system`, regardless of this option.) |
 | `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). |
 | `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
 | `--product-purl PURL` | Package-URL identifying the product, e.g. `pkg:generic/acme/fw@1.0`. Adds the product as the dependency-tree root. |
@@ -40,7 +44,7 @@ the dependency tree.
 
 ## `dpkg` system options
 
-Active when `--system dpkg` (the default). See [Systems](systems.md#dpkg) for what each enrichment
+Active when `--system dpkg` (the default). See [dpkg](systems/dpkg.md) for what each enrichment
 step does.
 
 | Option | Description |
@@ -51,12 +55,12 @@ step does.
 
 ## `pip` system options
 
-Active when `--system pip`. See [Systems](systems.md#pip) for venv discovery and dependency
+Active when `--system pip`. See [pip](systems/pip.md) for venv discovery and dependency
 resolution details.
 
 | Option | Description |
 |---|---|
-| `--venv-dir PATH` | Path to the virtualenv to scan (default: auto-detect a directory containing `pyvenv.cfg` under `--project-dir`, or `$VIRTUAL_ENV`). |
+| `--venv-dir PATH` | Path to the virtualenv to scan (default: auto-detect a directory containing `pyvenv.cfg` under `--project-dir`). Must contain `pyvenv.cfg`. `$VIRTUAL_ENV` is not consulted. |
 | `--project-dir PATH` | Project root to search for a virtualenv when `--venv-dir` is not given (default: current directory). |
 
 ## Exit codes

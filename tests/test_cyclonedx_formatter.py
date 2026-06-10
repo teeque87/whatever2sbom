@@ -63,3 +63,17 @@ def test_product_name_match_is_normalized() -> None:
 
     root = next(d for d in bom["dependencies"] if d["ref"] == "product:my-cool-tool")
     assert root["dependsOn"] == []
+
+
+def test_no_product_name_and_describe_os_false_omits_metadata_component() -> None:
+    """e.g. --system pip without --product-name: the scanned thing isn't the
+    host OS, so metadata.component must not be a misleading
+    operating-system fallback -- it's omitted entirely."""
+    packages = [_pkg("foo", "1.0"), _pkg("bar", "2.0")]
+    bom = _formatter(describe_os=False).format(packages)
+
+    assert "component" not in bom["metadata"]
+    assert not any(d["ref"] is None for d in bom["dependencies"])
+    refs = {pkg.bom_ref for pkg in packages}
+    assert {d["ref"] for d in bom["dependencies"]} == refs
+    assert set(bom["compositions"][0]["dependencies"]) == refs

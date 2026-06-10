@@ -291,4 +291,4 @@ everything else (`--help` choices, defaults, output extensions) is derived from 
       list it in `pyproject.toml`'s `package-data` — runtime stays offline, no exceptions.
 - [ ] Add tests under `tests/`.
 - [ ] Document new CLI options in [CLI reference](cli-reference.md) and new systems/schemas in
-      [Systems and schemas](systems.md).
+      [Systems and schemas](systems/index.md).
