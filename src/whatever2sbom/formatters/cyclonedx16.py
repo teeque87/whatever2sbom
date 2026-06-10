@@ -129,15 +129,15 @@ def _build_effective_license_property(pkg: PackageRecord) -> dict | None:
     the resulting SPDX license expression for the component.
 
     We have no separate concluded-license analysis, so this is only emitted
-    when every declared license is itself SPDX-compliant (id/expression),
-    combined with AND -- the conventional reading of "this component is
-    governed by all of these licenses together".
+    when every declared license is itself SPDX-compliant (id, expression, or
+    LicenseRef-*), combined with AND -- the conventional reading of "this
+    component is governed by all of these licenses together".
     """
     if not pkg.licenses:
         return None
 
     classified = [spdx.classify_license(lic) for lic in pkg.licenses]
-    if not all(c["kind"] in ("id", "expression") for c in classified):
+    if not all(c["compliant"] for c in classified):
         return None
 
     values = [c["value"] for c in classified]

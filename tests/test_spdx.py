@@ -83,6 +83,12 @@ def test_classify_license_unmapped() -> None:
     assert result == {"kind": "name", "value": "Some made up text", "compliant": False}
 
 
+def test_classify_license_dep5_public_domain() -> None:
+    """Common DEP-5 short names without an SPDX id map to LicenseRef-*."""
+    result = classify_license("public-domain")
+    assert result == {"kind": "name", "value": "LicenseRef-public-domain", "compliant": True}
+
+
 def test_classify_license_legacy_or_later() -> None:
     """"<id>+" forms not in the literal SPDX enum are valid SPDX expressions."""
     result = classify_license("GFDL-1.2+")

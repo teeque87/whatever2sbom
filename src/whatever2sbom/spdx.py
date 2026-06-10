@@ -19,6 +19,13 @@ _LICENSE_REF_RE = re.compile(r"^(DocumentRef-[\w.-]+:)?LicenseRef-[\w.-]+$")
 
 _TOKEN_RE = re.compile(r"\(|\)|AND|OR|WITH|[^\s()]+")
 
+# Common Debian DEP-5 "License:" short names that have no SPDX identifier of
+# their own but are well-defined enough to reference as LicenseRef-* (BSI
+# TR-03183-2 §6.1 accepts SPDX ids/expressions *or* LicenseRef-* identifiers).
+# The full text these refer to is the package's copyright notice, already
+# carried in the component's `copyright` field.
+_DEP5_LICENSE_REFS: frozenset[str] = frozenset({"public-domain"})
+
 
 @lru_cache(maxsize=1)
 def license_ids() -> frozenset[str]:
@@ -106,4 +113,6 @@ def classify_license(raw: str) -> dict:
         return {"kind": "name", "value": value, "compliant": True}
     if is_spdx_expression(value):
         return {"kind": "expression", "value": value, "compliant": True}
+    if value.lower() in _DEP5_LICENSE_REFS:
+        return {"kind": "name", "value": f"LicenseRef-{value.lower()}", "compliant": True}
     return {"kind": "name", "value": value, "compliant": False}

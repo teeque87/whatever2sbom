@@ -146,6 +146,14 @@ def test_effective_license_omitted_for_non_spdx_license() -> None:
     assert "bsi:component:effectiveLicense" not in props
 
 
+def test_effective_license_includes_dep5_license_ref() -> None:
+    # "public-domain" maps to the compliant LicenseRef-public-domain and
+    # should still contribute to effectiveLicense alongside SPDX ids.
+    bom = _format([_compliant_package(licenses=["MIT", "public-domain"])])
+    props = {p["name"]: p["value"] for p in bom["components"][0]["properties"]}
+    assert props["bsi:component:effectiveLicense"] == "(MIT) AND (LicenseRef-public-domain)"
+
+
 def test_compositions_marks_dependency_completeness() -> None:
     bom = _format([_compliant_package()])
     assert bom["compositions"] == [{
