@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -147,6 +149,17 @@ def _default_filename(schema: str) -> str:
     return f"sbom_{ts}.{ext}"
 
 
+# Strip the per-component reference (e.g. "components[pkg:deb/...]") so that
+# identical findings across many components collapse into one summary line.
+_FINDING_REF_RE = re.compile(r"\[[^\]]*\]")
+
+
+def _summarize_findings(findings: list[str]) -> list[tuple[str, int]]:
+    """Group findings by message with the component reference stripped, most common first."""
+    counts = Counter(_FINDING_REF_RE.sub("[...]", f) for f in findings)
+    return counts.most_common()
+
+
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
@@ -202,25 +215,29 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # ── BSI TR-03183-2 compliance report (advisory, non-fatal) ────────────────
-    if args.bsi_tr_compliant:
-        findings = BsiTr03183Validator().validate(bom)
-        if findings:
-            print(
-                f"BSI TR-03183-2 compliance: {len(findings)} finding(s):",
-                file=sys.stderr,
-            )
-            for finding in findings:
-                print(f"  {finding}", file=sys.stderr)
-        else:
-            print("BSI TR-03183-2 compliance: no findings", file=sys.stderr)
-
     # ── write output ──────────────────────────────────────────────────────────
     output = args.output or _default_filename(args.schema)
     Path(output).write_text(
         json.dumps(bom, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
+
+    # ── BSI TR-03183-2 compliance report (advisory, non-fatal) ────────────────
+    if args.bsi_tr_compliant:
+        findings = BsiTr03183Validator().validate(bom)
+        if findings:
+            report_path = Path(output).with_suffix(".bsi-report.txt")
+            report_path.write_text("\n".join(findings) + "\n", encoding="utf-8")
+
+            print(
+                f"BSI TR-03183-2 compliance: {len(findings)} finding(s) "
+                f"(full list written to {report_path}):",
+                file=sys.stderr,
+            )
+            for message, count in _summarize_findings(findings):
+                print(f"  [{count:>4}x] {message}", file=sys.stderr)
+        else:
+            print("BSI TR-03183-2 compliance: no findings", file=sys.stderr)
 
     # ── summary ───────────────────────────────────────────────────────────────
     meta  = bom.get("metadata", {})

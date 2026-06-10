@@ -51,6 +51,7 @@ class PackageRecord:
 
     # ── enriched fields ───────────────────────────────────────────────────────
     licenses: list[str] = field(default_factory=list)
+    copyright: Optional[str] = None     # copyright notice from DEP-5 copyright file
 
     # Package-URLs, filled by the collector for its ecosystem (formatters emit
     # these verbatim and never construct PURLs themselves):

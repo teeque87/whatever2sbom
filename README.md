@@ -145,7 +145,9 @@ Each component in the SBOM contains:
 - `type` — derived from the dpkg section (`library`, `application`, `firmware`, `operating-system`)
 - `scope` — `required` for essential/important packages, `optional` otherwise
 - `supplier` — maintainer name and email parsed from the `Maintainer` field
-- `licenses` — SPDX identifiers extracted from the DEP-5 copyright file (when available)
+- `authors` — maintainer name and email parsed from the `Maintainer` field (best-effort substitute for upstream author info, which dpkg does not track)
+- `copyright` — copyright notice from the `Files: *` stanza of the DEP-5 copyright file (when available)
+- `licenses` — SPDX identifiers extracted from the DEP-5 copyright file (when available), each with a `url` pointing to the corresponding `https://spdx.org/licenses/<id>.html` page
 - `hashes` — SHA-256, SHA-512, SHA-1, MD5 (populated by apt-cache enrichment)
 - `externalReferences` — homepage, bug tracker, pool download path
 - `properties` — additional dpkg metadata: `dpkg:section`, `dpkg:priority`, `dpkg:installed-size`, `dpkg:download-size`, `dpkg:source`, `dpkg:source-name`, `dpkg:source-version`, `dpkg:origin`, `dpkg:multi-arch`

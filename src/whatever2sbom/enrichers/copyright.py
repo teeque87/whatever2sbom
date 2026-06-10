@@ -63,12 +63,13 @@ _DEBIAN_TO_SPDX: dict[str, str] = {
 }
 
 
-def _parse_dep5(content: str) -> list[str]:
+def _parse_dep5(content: str) -> tuple[list[str], str | None]:
     """
-    Return unique license short-names from a DEP-5 copyright file.
+    Return (unique license short-names, copyright notice) from a DEP-5
+    copyright file.
 
-    Collects licenses from all Files: stanzas. The stanza with Files: *
-    is placed first when present.
+    Collects from all Files: stanzas. The stanza with Files: * is considered
+    first when present, since it covers the whole package.
     """
     stanzas: list[dict[str, str]] = []
     current: dict[str, str] = {}
@@ -105,16 +106,21 @@ def _parse_dep5(content: str) -> list[str]:
     _flush_stanza()
 
     seen: set[str] = set()
-    result: list[str] = []
+    licenses: list[str] = []
+    notice: str | None = None
 
     def _collect(stanza: dict[str, str]) -> None:
+        nonlocal notice
         raw = stanza.get("license", "")
-        if not raw:
-            return
-        short = raw.split()[0].rstrip(";").strip()
-        if short and short not in seen:
-            seen.add(short)
-            result.append(short)
+        if raw:
+            short = raw.split()[0].rstrip(";").strip()
+            if short and short not in seen:
+                seen.add(short)
+                licenses.append(short)
+        if notice is None:
+            text = stanza.get("copyright", "").strip()
+            if text:
+                notice = text
 
     # Files: * stanza first for deterministic ordering
     for stanza in stanzas:
@@ -124,22 +130,22 @@ def _parse_dep5(content: str) -> list[str]:
         if stanza.get("files", "").strip() != "*":
             _collect(stanza)
 
-    return result
+    return licenses, notice
 
 
-def _read_licenses(pkg_name: str) -> list[str]:
+def _read_package_metadata(pkg_name: str) -> tuple[list[str], str | None]:
     path = _COPYRIGHT_BASE / pkg_name / "copyright"
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
     except (FileNotFoundError, PermissionError):
-        return []
+        return [], None
 
     # DEP-5 files start with a Format: header
     if content.lstrip().startswith("Format:") or "Format: https://www.debian.org" in content[:512]:
-        names = _parse_dep5(content)
-        return [_DEBIAN_TO_SPDX.get(n, n) for n in names]
+        names, notice = _parse_dep5(content)
+        return [_DEBIAN_TO_SPDX.get(n, n) for n in names], notice
 
-    return []
+    return [], None
 
 
 class CopyrightEnricher(Enricher):
@@ -150,9 +156,11 @@ class CopyrightEnricher(Enricher):
     def enrich(self, packages: list[PackageRecord]) -> list[PackageRecord]:
         found = 0
         for pkg in packages:
-            licenses = _read_licenses(pkg.name)
+            licenses, copyright_notice = _read_package_metadata(pkg.name)
             if licenses:
                 pkg.licenses = licenses
                 found += 1
+            if copyright_notice:
+                pkg.copyright = copyright_notice
         logger.info("  ← %d / %d licenses resolved", found, len(packages))
         return packages

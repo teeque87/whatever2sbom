@@ -38,7 +38,9 @@ def _compliant_package(**overrides) -> PackageRecord:
 
 def test_single_spdx_id_emitted_as_license_id() -> None:
     bom = _format([_compliant_package(licenses=["MIT"])])
-    assert bom["components"][0]["licenses"] == [{"license": {"id": "MIT"}}]
+    assert bom["components"][0]["licenses"] == [
+        {"license": {"id": "MIT", "url": "https://spdx.org/licenses/MIT.html"}}
+    ]
 
 
 def test_single_spdx_expression_emitted_as_expression() -> None:
@@ -61,6 +63,21 @@ def test_no_licenses_omits_field() -> None:
 
 
 # ── BSI properties / compositions ───────────────────────────────────────────
+
+def test_copyright_emitted_when_present() -> None:
+    bom = _format([_compliant_package(copyright="2020 Jane Doe")])
+    assert bom["components"][0]["copyright"] == "2020 Jane Doe"
+
+
+def test_copyright_omitted_when_absent() -> None:
+    bom = _format([_compliant_package()])
+    assert "copyright" not in bom["components"][0]
+
+
+def test_authors_built_from_maintainer() -> None:
+    bom = _format([_compliant_package(maintainer="Jane Doe <jane@example.com>")])
+    assert bom["components"][0]["authors"] == [{"name": "Jane Doe", "email": "jane@example.com"}]
+
 
 def test_bsi_properties_present() -> None:
     bom = _format([_compliant_package()])

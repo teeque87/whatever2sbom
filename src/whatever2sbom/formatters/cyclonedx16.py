@@ -97,14 +97,43 @@ def _map_scope(pkg: PackageRecord) -> str:
     return "optional"
 
 
+def _parse_name_email(raw: str) -> tuple[str, str | None]:
+    """Split "Name <email>" into (name, email | None)."""
+    m = re.match(r"^(.*?)\s*<([^>]+)>", raw.strip())
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return raw.strip(), None
+
+
 def _build_supplier(maintainer: str | None) -> dict | None:
     if not maintainer:
         return None
-    m = re.match(r"^(.*?)\s*<([^>]+)>", maintainer.strip())
-    if m:
-        name, email = m.group(1).strip(), m.group(2).strip()
+    name, email = _parse_name_email(maintainer)
+    if email:
         return {"name": name, "contact": [{"name": name, "email": email}]}
-    return {"name": maintainer.strip()}
+    return {"name": name}
+
+
+def _build_authors(maintainer: str | None) -> list[dict] | None:
+    """
+    Component authors per CycloneDX 1.6: the person(s) who created the
+    component. For dpkg, the closest available data is the package
+    Maintainer field.
+    """
+    if not maintainer:
+        return None
+    name, email = _parse_name_email(maintainer)
+    author: dict = {"name": name}
+    if email:
+        author["email"] = email
+    return [author]
+
+
+# Deprecated SPDX license IDs (e.g. "GPL-2.0+") still resolve to a page on
+# spdx.org, so the URL pattern below is valid for every literal id in the
+# bundled SPDX list -- no network lookup or separate cache needed.
+def _spdx_license_url(license_id: str) -> str:
+    return f"https://spdx.org/licenses/{license_id}.html"
 
 
 def _build_hashes(pkg: PackageRecord) -> list[dict]:
@@ -141,7 +170,7 @@ def _build_licenses(pkg: PackageRecord) -> list[dict] | None:
     result: list[dict] = []
     for c in classified:
         if c["kind"] == "id":
-            result.append({"license": {"id": c["value"]}})
+            result.append({"license": {"id": c["value"], "url": _spdx_license_url(c["value"])}})
         else:
             result.append({"license": {"name": c["value"]}})
     return result
@@ -304,6 +333,13 @@ class CycloneDXFormatter(Formatter):
         supplier = _build_supplier(pkg.maintainer)
         if supplier:
             component["supplier"] = supplier
+
+        authors = _build_authors(pkg.maintainer)
+        if authors:
+            component["authors"] = authors
+
+        if pkg.copyright:
+            component["copyright"] = pkg.copyright
 
         licenses = _build_licenses(pkg)
         if licenses:

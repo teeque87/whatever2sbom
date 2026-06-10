@@ -26,15 +26,17 @@ License: Apache-2.0
 
 
 def test_parse_dep5_wildcard_first() -> None:
-    result = _parse_dep5(_DEP5_SIMPLE)
+    licenses, notice = _parse_dep5(_DEP5_SIMPLE)
     # Files: * should come first
-    assert result[0] == "GPL-2+"
-    assert "MIT" in result
+    assert licenses[0] == "GPL-2+"
+    assert "MIT" in licenses
+    assert notice == "2020 Someone"
 
 
 def test_parse_dep5_no_wildcard() -> None:
-    result = _parse_dep5(_DEP5_NO_WILDCARD)
-    assert result == ["Apache-2.0"]
+    licenses, notice = _parse_dep5(_DEP5_NO_WILDCARD)
+    assert licenses == ["Apache-2.0"]
+    assert notice == "2019 Author"
 
 
 def test_parse_dep5_deduplication() -> None:
@@ -49,8 +51,9 @@ Files: extra/*
 Copyright: 2020 B
 License: MIT
 """
-    result = _parse_dep5(content)
-    assert result.count("MIT") == 1
+    licenses, notice = _parse_dep5(content)
+    assert licenses.count("MIT") == 1
+    assert notice == "2020 A"
 
 
 def test_debian_to_spdx_mapping() -> None:
