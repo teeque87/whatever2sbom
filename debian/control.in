@@ -1,0 +1,14 @@
+Package: whatever2sbom
+Version: __VERSION__
+Section: utils
+Priority: optional
+Architecture: __ARCH__
+Installed-Size: __SIZE__
+Depends: python3 (>= 3.11), python3-venv, python3-pip
+Maintainer: Michael Hansonis <whatever2sbom@teeque.dev>
+Homepage: https://github.com/teeque87/whatever2sbom
+Description: Generate a rich SBOM for whatever you throw at it
+ whatever2sbom generates a validated CycloneDX SBOM from a system or
+ project. It is installed into a self-contained virtual environment
+ under /opt/whatever2sbom so it does not interfere with the host's
+ system Python or any other installed packages.

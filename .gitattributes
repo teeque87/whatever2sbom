@@ -1,0 +1,2 @@
+build_deb.sh text eol=lf
+debian/* text eol=lf

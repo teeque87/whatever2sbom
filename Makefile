@@ -55,6 +55,10 @@ wheel: $(WHATEVER2SBOM) ## Build a distributable wheel into dist/
 	@echo "Install locally:           pip install $$(ls dist/*.whl)"
 	@echo "Transfer + install remote: scp $$(ls dist/*.whl) user@host:/tmp/ && ssh user@host pip install /tmp/$$(ls dist/*.whl | xargs basename)"
 
+.PHONY: deb
+deb: ## Build a .deb with a self-contained venv (Linux/amd64, requires dpkg-deb)
+	bash build_deb.sh
+
 .PHONY: docs-venv
 docs-venv: ## Create venv + install docs dependencies
 	$(PYTHON) -m venv $(VENV) || $(PYTHON) -m venv --copies $(VENV)

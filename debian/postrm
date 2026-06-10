@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|purge)
+        rm -rf /opt/whatever2sbom/venv
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /opt/whatever2sbom/venv/bin/whatever2sbom "$@"

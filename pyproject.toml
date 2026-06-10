@@ -7,12 +7,21 @@ name = "whatever2sbom"
 dynamic = ["version"]
 description = "Generate a rich SBOM for whatever you throw at it"
 readme = "README.md"
-license = "MIT"
+license = "GPL-3.0-or-later"
+authors = [
+    { name = "Michael Hansonis", email = "whatever2sbom@teeque.dev" },
+]
 requires-python = ">=3.11"
 dependencies = [
     "jsonschema>=4.23",
     "packaging>=24",
 ]
+
+[project.urls]
+Homepage = "https://github.com/teeque87/whatever2sbom"
+Documentation = "https://teeque87.github.io/whatever2sbom/"
+Repository = "https://github.com/teeque87/whatever2sbom"
+Issues = "https://github.com/teeque87/whatever2sbom/issues"
 
 [project.scripts]
 

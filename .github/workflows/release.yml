@@ -35,6 +35,23 @@ jobs:
           name: wheel
           path: dist/*.whl
 
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build .deb
+        run: bash build_deb.sh
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: deb
+          path: build/deb/*.deb
+
   build-docs:
     runs-on: ubuntu-latest
     steps:
@@ -65,7 +82,7 @@ jobs:
         uses: actions/deploy-pages@v5
 
   release:
-    needs: build-wheel
+    needs: [build-wheel, build-deb]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
@@ -74,7 +91,14 @@ jobs:
           name: wheel
           path: dist
 
+      - uses: actions/download-artifact@v6
+        with:
+          name: deb
+          path: dist
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.whl
+          files: |
+            dist/*.whl
+            dist/*.deb
           generate_release_notes: true
