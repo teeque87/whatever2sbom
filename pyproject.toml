@@ -26,6 +26,7 @@ dev = [
 docs = [
     "mkdocs>=1.6",
     "mkdocs-shadcn>=0.10",
+    "Pygments>=2.19",
 ]
 
 [tool.setuptools.packages.find]
