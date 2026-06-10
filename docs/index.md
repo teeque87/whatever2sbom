@@ -1,3 +1,8 @@
+---
+title: whatever2sbom
+description: Generate a validated, BSI TR-03183-2-aware CycloneDX SBOM for whatever you throw at it — offline, with rich provenance.
+---
+
 # whatever2sbom
 
 **whatever2sbom** generates a validated [CycloneDX](https://cyclonedx.org/) Software Bill of
