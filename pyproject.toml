@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68", "setuptools_scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "whatever2sbom"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Generate a rich SBOM for whatever you throw at it"
 readme = "README.md"
 license = "MIT"
@@ -33,3 +33,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "whatever2sbom" = ["schema/**/*.json"]
+
+[tool.setuptools_scm]
+# Tags are "v1.2.3"; the leading "v" is stripped to produce the package
+# version "1.2.3", which is what ends up in METADATA / PyPI / __version__.
+# Untagged commits get a local dev version (e.g. "1.2.4.dev3+gabcdef0").

@@ -51,3 +51,4 @@ nav:
   - Architecture: architecture.md
   - Extending whatever2sbom: extending.md
   - Performance: performance.md
+  - Releasing: releasing.md
