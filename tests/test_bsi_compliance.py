@@ -84,19 +84,44 @@ def test_copyright_omitted_when_absent() -> None:
     assert "copyright" not in bom["components"][0]
 
 
-def test_authors_built_from_maintainer() -> None:
+def test_supplier_built_from_maintainer() -> None:
     bom = _format([_compliant_package(maintainer="Jane Doe <jane@example.com>")])
-    assert bom["components"][0]["authors"] == [{"name": "Jane Doe", "email": "jane@example.com"}]
+    assert bom["components"][0]["supplier"] == {
+        "name": "Jane Doe",
+        "contact": [{"name": "Jane Doe", "email": "jane@example.com"}],
+    }
 
 
-def test_authors_prefer_original_maintainer_over_maintainer() -> None:
+def test_no_authors_without_upstream_author_metadata() -> None:
+    # dpkg's Maintainer/Original-Maintainer reflect packaging, not authorship,
+    # so the dpkg collector never sets pkg.authors.
+    bom = _format([_compliant_package(
+        maintainer="Jane Doe <jane@example.com>",
+        original_maintainer="John Upstream <john@example.com>",
+    )])
+    assert "authors" not in bom["components"][0]
+
+
+def test_original_maintainer_added_as_extra_supplier_contact() -> None:
     bom = _format([_compliant_package(
         maintainer="Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>",
         original_maintainer="John Upstream <john@example.com>",
+        supplier_contacts=["John Upstream <john@example.com>"],
     )])
-    assert bom["components"][0]["authors"] == [{"name": "John Upstream", "email": "john@example.com"}]
+    supplier = bom["components"][0]["supplier"]
     # supplier still reflects who actually built/distributed the package
-    assert bom["components"][0]["supplier"]["name"] == "Ubuntu Developers"
+    assert supplier["name"] == "Ubuntu Developers"
+    assert supplier["contact"] == [
+        {"name": "Ubuntu Developers", "email": "ubuntu-devel-discuss@lists.ubuntu.com"},
+        {"name": "John Upstream", "email": "john@example.com"},
+    ]
+
+
+def test_component_authors_built_from_pkg_authors() -> None:
+    # Generic path for ecosystems that provide real upstream-author metadata
+    # (e.g. npm "author", PyPI "Author").
+    bom = _format([_compliant_package(authors=["Jane Doe <jane@example.com>"])])
+    assert bom["components"][0]["authors"] == [{"name": "Jane Doe", "email": "jane@example.com"}]
 
 
 def test_bsi_properties_present() -> None:

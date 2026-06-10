@@ -21,8 +21,8 @@ class PackageRecord:
     source_name: Optional[str] = None   # resolved source package name (${source:Package})
     source_version: Optional[str] = None  # resolved source version incl. epoch (${source:Version})
     origin: Optional[str] = None       # repository origin (e.g. Ubuntu)
-    maintainer: Optional[str] = None   # "Name <email>" — maps to supplier + contact
-    original_maintainer: Optional[str] = None  # Debian Original-Maintainer (pre-Ubuntu rewrite); preferred for authors
+    maintainer: Optional[str] = None   # "Name <email>" — primary supplier + contact
+    original_maintainer: Optional[str] = None  # Debian Original-Maintainer (pre-Ubuntu rewrite)
 
     # ── references ────────────────────────────────────────────────────────────
     homepage: Optional[str] = None
@@ -69,6 +69,18 @@ class PackageRecord:
     component_type: str = "library"   # CycloneDX component "type"
     scope: str = "required"           # CycloneDX component "scope"
     dependency_refs: list[str] = field(default_factory=list)  # resolved bom-refs of direct deps
+
+    # Component "authors" per CycloneDX 1.6: the person(s) who wrote the
+    # software, as "Name <email>" strings. Only set when the ecosystem
+    # provides genuine upstream-author metadata (e.g. npm "author"/
+    # "contributors", PyPI "Author"); dpkg's Maintainer/Original-Maintainer
+    # describe packaging, not authorship, so dpkg leaves this empty.
+    authors: list[str] = field(default_factory=list)
+
+    # Additional "Name <email>" contacts for the CycloneDX "supplier" entity,
+    # alongside `maintainer` (e.g. dpkg's Original-Maintainer, kept as a
+    # secondary packaging contact when it differs from Maintainer).
+    supplier_contacts: list[str] = field(default_factory=list)
 
     # BSI TR-03183-2 §5.2.2 "nature of the component" properties. None means
     # "not determined for this ecosystem" and the property is omitted.

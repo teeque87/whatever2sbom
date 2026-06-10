@@ -20,31 +20,51 @@ def _parse_name_email(raw: str) -> tuple[str, str | None]:
     return raw.strip(), None
 
 
-def _build_supplier(maintainer: str | None) -> dict | None:
-    if not maintainer:
+def _build_supplier(pkg: PackageRecord) -> dict | None:
+    """
+    CycloneDX `supplier`: who builds/distributes the component. `maintainer`
+    is the primary contact; `supplier_contacts` (e.g. dpkg's
+    Original-Maintainer) are additional packaging contacts for the same
+    supplier, not separate authors.
+    """
+    raw_contacts = [c for c in (pkg.maintainer, *pkg.supplier_contacts) if c]
+    if not raw_contacts:
         return None
-    name, email = _parse_name_email(maintainer)
-    if email:
-        return {"name": name, "contact": [{"name": name, "email": email}]}
-    return {"name": name}
+
+    contacts: list[dict] = []
+    seen: set[tuple[str, str | None]] = set()
+    for raw in raw_contacts:
+        name, email = _parse_name_email(raw)
+        if (name, email) in seen:
+            continue
+        seen.add((name, email))
+        contact: dict = {"name": name}
+        if email:
+            contact["email"] = email
+        contacts.append(contact)
+
+    supplier: dict = {"name": contacts[0]["name"]}
+    if any("email" in c for c in contacts):
+        supplier["contact"] = contacts
+    return supplier
 
 
-def _build_authors(pkg: PackageRecord) -> list[dict] | None:
+def _build_component_authors(pkg: PackageRecord) -> list[dict] | None:
     """
-    Component authors per CycloneDX 1.6: the person(s) who created the
-    component. Ubuntu rewrites Maintainer to "Ubuntu Developers" for every
-    package it builds, so prefer Original-Maintainer (the Debian packager,
-    often also the upstream author) when available, falling back to
-    Maintainer for packages that have no Original-Maintainer field.
+    Component authors per CycloneDX 1.6: the person(s) who wrote the
+    component's source code. Only set when the collector populated
+    `pkg.authors` with genuine upstream-author metadata (see PackageRecord).
     """
-    raw = pkg.original_maintainer or pkg.maintainer
-    if not raw:
+    if not pkg.authors:
         return None
-    name, email = _parse_name_email(raw)
-    author: dict = {"name": name}
-    if email:
-        author["email"] = email
-    return [author]
+    result: list[dict] = []
+    for raw in pkg.authors:
+        name, email = _parse_name_email(raw)
+        author: dict = {"name": name}
+        if email:
+            author["email"] = email
+        result.append(author)
+    return result
 
 
 # Deprecated SPDX license IDs (e.g. "GPL-2.0+") still resolve to a page on
@@ -267,11 +287,11 @@ class CycloneDXFormatter(Formatter):
         if pkg.description:
             component["description"] = pkg.description
 
-        supplier = _build_supplier(pkg.maintainer)
+        supplier = _build_supplier(pkg)
         if supplier:
             component["supplier"] = supplier
 
-        authors = _build_authors(pkg)
+        authors = _build_component_authors(pkg)
         if authors:
             component["authors"] = authors
 
