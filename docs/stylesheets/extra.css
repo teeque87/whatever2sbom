@@ -5,5 +5,5 @@ table td:first-child {
 
 /* Widen the article content area (theme default is a cramped 42rem). */
 :root {
-  --container-2xl: 48rem;
+  --container-2xl: 80rem;
 }
