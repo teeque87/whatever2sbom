@@ -17,21 +17,44 @@ _SPDX_SCHEMA = Path(__file__).parent / "schema" / "cdx" / "spdx.schema.json"
 # per "Annex B. SPDX license expressions".
 _LICENSE_REF_RE = re.compile(r"^(DocumentRef-[\w.-]+:)?LicenseRef-[\w.-]+$")
 
+# A bare name usable as the "<entity>-..." part of "LicenseRef-<entity>-...".
+_LICENSE_REF_NAME_RE = re.compile(r"^[\w.-]+$")
+
 _TOKEN_RE = re.compile(r"\(|\)|AND|OR|WITH|[^\s()]+")
 
-# Common Debian DEP-5 "License:" short names that have no SPDX identifier of
-# their own but are well-defined enough to reference as LicenseRef-* (BSI
-# TR-03183-2 §6.1 accepts SPDX ids/expressions *or* LicenseRef-* identifiers).
-# The full text these refer to is the package's copyright notice, already
-# carried in the component's `copyright` field.
-_DEP5_LICENSE_REFS: frozenset[str] = frozenset({"public-domain"})
+# Debian copyright files sometimes join SPDX ids with "_OR_" / "_AND_" /
+# "_WITH_" instead of the SPDX expression syntax's spaced operators (e.g.
+# "GPL-2.0-only_OR_LicenseRef-KDE-Accepted-GPL"). Normalizing these to spaced
+# operators before validation recovers a proper SPDX expression; strings that
+# aren't actually SPDX expressions (e.g. containing free-text "_with_parts_
+# in_..._") simply fail validation afterwards and fall through unchanged.
+_COMPOUND_OPERATOR_RE = re.compile(r"_(OR|AND|WITH)_")
 
 # Common Debian DEP-5 "License:" short names that are just an alternate name
 # for an SPDX-listed license (case-insensitive lookup -> canonical SPDX id).
-# "Expat" is the name the MIT license's original authors (the X Consortium /
-# MIT's X11 distribution via Expat) used, and SPDX's "MIT" id is that same text.
 _SPDX_ALIASES: dict[str, str] = {
+    # "Expat" is the name the MIT license's original authors (the X Consortium /
+    # MIT's X11 distribution via Expat) used, and SPDX's "MIT" id is that same text.
     "expat": "MIT",
+    "mit/x11": "MIT",
+    "mit/x": "MIT",
+    # Boost Software License 1.0 -- Debian's short name vs. SPDX's id.
+    "boost-1.0": "BSL-1.0",
+    # Creative Commons CC0 -- Debian often drops the "-1.0" suffix.
+    "cc0": "CC0-1.0",
+    # The "zlib/libpng License" *is* the Zlib license; SPDX's id is "Zlib".
+    "zlib": "Zlib",
+    "zlib/libpng": "Zlib",
+    # PSF's "Python License" short name vs. SPDX's versioned id.
+    "python": "Python-2.0",
+    # SIL Open Font License 1.1 -- several Debian short names in use.
+    "sil-1.1": "OFL-1.1",
+    "sil-ofl-1.1": "OFL-1.1",
+    "ofl-v1.1": "OFL-1.1",
+    # Bitstream Vera fonts license.
+    "bitstream": "Bitstream-Vera",
+    "bitstream-vera": "Bitstream-Vera",
+    "bitstreamvera": "Bitstream-Vera",
 }
 
 
@@ -124,6 +147,14 @@ def classify_license(raw: str) -> dict:
         return {"kind": "name", "value": value, "compliant": True}
     if is_spdx_expression(value):
         return {"kind": "expression", "value": value, "compliant": True}
-    if value.lower() in _DEP5_LICENSE_REFS:
-        return {"kind": "name", "value": f"LicenseRef-{value.lower()}", "compliant": True}
+    normalized = _COMPOUND_OPERATOR_RE.sub(r" \1 ", value)
+    if normalized != value and is_spdx_expression(normalized):
+        return {"kind": "expression", "value": normalized, "compliant": True}
+    # A Debian DEP-5 "License:" short name with no SPDX equivalent is itself an
+    # identifier defined within that package's own copyright file (the full
+    # text follows in the same "License:" stanza, carried in the component's
+    # `copyright` field) -- exactly what LicenseRef-* exists for (BSI
+    # TR-03183-2 §6.1 accepts SPDX ids/expressions *or* LicenseRef-*).
+    if _LICENSE_REF_NAME_RE.match(value):
+        return {"kind": "name", "value": f"LicenseRef-{value}", "compliant": True}
     return {"kind": "name", "value": value, "compliant": False}
