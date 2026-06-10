@@ -4,6 +4,7 @@
 
 - Python 3.11+
 - Linux with `dpkg` (Debian / Ubuntu) for `--system dpkg`
+- A virtualenv (created with `pyvenv.cfg`, e.g. via `python -m venv` or `uv venv`) for `--system pip`
 
 ## Installation
 
@@ -86,6 +87,37 @@ Print a per-stage timing breakdown (collect / enrich / format / validate):
 ```bash
 whatever2sbom --product-supplier "Acme GmbH" --performance-metrics
 ```
+
+## Scanning a Python project (`--system pip`)
+
+Run from the project root — the virtualenv is auto-detected by looking for `pyvenv.cfg`:
+
+```bash
+whatever2sbom --system pip --product-supplier "Acme GmbH"
+```
+
+This scans the venv's `site-packages` via `importlib.metadata` and resolves the dependency graph
+from each package's `Requires-Dist` metadata — no `requirements.txt` parsing involved.
+
+To describe the project itself as the product (so it becomes the root of the dependency tree, and
+its own `Requires-Dist` becomes the root's direct dependencies):
+
+```bash
+whatever2sbom --system pip \
+  --product-name myproject \
+  --product-version "$(myproject --version)" \
+  --product-supplier "Acme GmbH" \
+  -o myproject.cdx.json
+```
+
+If the venv can't be auto-detected (e.g. multiple venvs under the project, or it lives elsewhere),
+pass it explicitly:
+
+```bash
+whatever2sbom --system pip --venv-dir /path/to/.venv --product-supplier "Acme GmbH"
+```
+
+`--product-type` defaults to `application` for `--system pip` (vs. `firmware` for `dpkg`).
 
 ## A fully described, BSI TR-03183-compliant SBOM
 

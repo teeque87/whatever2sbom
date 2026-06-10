@@ -6,10 +6,10 @@ description: Generate a validated, BSI TR-03183-2-aware CycloneDX SBOM for whate
 # whatever2sbom
 
 **whatever2sbom** generates a validated [CycloneDX](https://cyclonedx.org/) Software Bill of
-Materials (SBOM) from a system or project. It scans an installed package database (today: Debian
-or Ubuntu via `dpkg`/`apt`), enriches each component with hashes, licenses and provenance
-metadata, and writes out a CycloneDX document that has already been checked against the official
-JSON schema — so what you get is always structurally valid.
+Materials (SBOM) from a system or project. It scans an installed package database — Debian or
+Ubuntu via `dpkg`/`apt`, or a Python virtualenv via `pip` — enriches each component with hashes,
+licenses and provenance metadata, and writes out a CycloneDX document that has already been
+checked against the official JSON schema — so what you get is always structurally valid.
 
 It can additionally check the result against the
 [BSI TR-03183-2](https://www.bsi.bund.de/EN/Themen/Unternehmen-und-Organisationen/Standards-und-Zertifizierung/Anforderungen-an-Hersteller/Hersteller_node.html)
@@ -27,7 +27,7 @@ compliance.
   package list.
 - **Compliance-aware.** `--bsi-tr-compliant` runs an additional, advisory check against
   BSI TR-03183-2 §5.2.2 and tells you precisely what's missing.
-- **Built to be extended.** Scanning a new ecosystem (pip, npm, …) or emitting a new output schema
+- **Built to be extended.** Scanning a new ecosystem (npm, …) or emitting a new output schema
   (SPDX, …) means writing one small plugin and registering it — see
   [Architecture](architecture.md) and [Extending whatever2sbom](extending.md).
 
@@ -35,6 +35,7 @@ compliance.
 
 - Python 3.11+
 - Linux with `dpkg` (Debian / Ubuntu) for `--system dpkg`
+- A virtualenv for `--system pip`
 
 ## Installation
 

@@ -13,7 +13,7 @@ whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
 
 | Option | Default | Description |
 |---|---|---|
-| `--system SYSTEM` | `dpkg` | What to scan. See [Systems](systems.md). |
+| `--system SYSTEM` | `dpkg` | What to scan: `dpkg` or `pip`. See [Systems](systems.md). |
 | `--schema FORMAT` | `cyclonedx` | Output schema format. See [Schemas](systems.md#schemas). |
 | `--spec-version VERSION` | `1.6` | Spec version of the chosen schema. |
 | `-o`, `--output FILE` | `sbom_<timestamp>.<ext>` | Output file path. Extension is chosen by the formatter (`.cdx.json` for CycloneDX). |
@@ -32,7 +32,7 @@ the dependency tree.
 |---|---|
 | `--product-name NAME` | Name of the product or firmware image being described. |
 | `--product-version VERSION` | Version of the product. |
-| `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, …). Default: `firmware`. |
+| `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, …). Default depends on `--system`: `firmware` for `dpkg`, `application` for `pip`. |
 | `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). |
 | `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
 | `--product-purl PURL` | Package-URL identifying the product, e.g. `pkg:generic/acme/fw@1.0`. Adds the product as the dependency-tree root. |
@@ -48,6 +48,16 @@ step does.
 | `--distro ID` | Override the distro identifier used in package PURLs (e.g. `ubuntu`, `debian`). Auto-detected from `/etc/os-release` if omitted. |
 | `--no-apt-cache` | Skip `apt-cache show` enrichment. Hashes and download metadata will be absent for most packages. |
 | `--no-licenses` | Skip reading `/usr/share/doc/<pkg>/copyright`. The `licenses` field will be empty on all components. |
+
+## `pip` system options
+
+Active when `--system pip`. See [Systems](systems.md#pip) for venv discovery and dependency
+resolution details.
+
+| Option | Description |
+|---|---|
+| `--venv-dir PATH` | Path to the virtualenv to scan (default: auto-detect a directory containing `pyvenv.cfg` under `--project-dir`, or `$VIRTUAL_ENV`). |
+| `--project-dir PATH` | Project root to search for a virtualenv when `--venv-dir` is not given (default: current directory). |
 
 ## Exit codes
 

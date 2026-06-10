@@ -41,8 +41,8 @@ class SbomPipeline:
 [`registry.py`](https://github.com/teeque87/whatever2sbom/blob/main/src/whatever2sbom/registry.py)
 is the single source of truth for what's available:
 
-- **Systems** (`register_system`) — one per ecosystem, keyed by name (`"dpkg"`). Selected via
-  `--system`.
+- **Systems** (`register_system`) — one per ecosystem, keyed by name (`"dpkg"`, `"pip"`). Selected
+  via `--system`.
 - **Formatters** (`register_formatter`) — keyed by `(schema, spec_version)`, e.g.
   `("cyclonedx", "1.6")`. Selected via `--schema`/`--spec-version`.
 - **Validators** (`register_validator`) — keyed the same way as formatters, and run alongside the
@@ -55,14 +55,20 @@ new plugin automatically makes it selectable on the command line.
 ## A `SystemPlugin` ties it together
 
 A [`SystemPlugin`](https://github.com/teeque87/whatever2sbom/blob/main/src/whatever2sbom/systems/base.py)
-is the unit of "an ecosystem you can scan". It has three jobs:
+is the unit of "an ecosystem you can scan". It has four jobs:
 
 - declare any CLI options it needs (`add_arguments`)
 - build its `Collector` from the parsed args (`make_collector`)
 - build its ordered list of `Enricher`s from the parsed args (`make_enrichers`)
+- declare the default CycloneDX component type for `metadata.component` (`default_product_type`)
 
 The built-in `DpkgSystem` registers `--distro`, `--no-apt-cache`, and `--no-licenses`, builds a
-`DpkgCollector`, and conditionally adds `AptCacheEnricher` and `CopyrightEnricher`.
+`DpkgCollector`, conditionally adds `AptCacheEnricher` and `CopyrightEnricher`, and defaults
+`default_product_type` to `"firmware"`.
+
+`PipSystem` registers `--venv-dir` and `--project-dir`, builds a `PipCollector` (which resolves
+licenses and the dependency graph itself, so it has no enrichers), and defaults
+`default_product_type` to `"application"`.
 
 ## The `PackageRecord` model
 
@@ -76,9 +82,10 @@ Two fields are worth calling out because they're computed by the **collector**, 
 formatter:
 
 - **`purl`** — the matchable coordinate a vulnerability scanner keys on (for `dpkg`: the source
-  package + `arch=source`).
+  package + `arch=source`; for `pip`: `pkg:pypi/<name>@<version>` with the name PEP 503
+  normalized).
 - **`bom_ref`** — a unique dependency-graph node id (for `dpkg`: the per-binary coordinate
-  including `arch`).
+  including `arch`; for `pip`: the same PURL, since each installed distribution is unique).
 
 Formatters emit `purl`/`bom_ref` verbatim and never construct PURLs themselves — this keeps
 ecosystem-specific PURL rules (which differ a lot between deb, npm, pip, …) out of the formatter,
@@ -91,8 +98,8 @@ else (e.g. `("dpkg:section", "libs")`) — formatters emit these as CycloneDX `p
 
 | Concept | Base class | Built-in implementation |
 |---|---|---|
-| System plugin | `systems/base.py::SystemPlugin` | `systems/dpkg.py::DpkgSystem` |
-| Collector | `collectors/base.py::Collector` | `collectors/dpkg.py::DpkgCollector` |
+| System plugin | `systems/base.py::SystemPlugin` | `systems/dpkg.py::DpkgSystem`, `systems/pip.py::PipSystem` |
+| Collector | `collectors/base.py::Collector` | `collectors/dpkg.py::DpkgCollector`, `collectors/pip.py::PipCollector` |
 | Enricher | `enrichers/base.py::Enricher` | `enrichers/apt_cache.py`, `enrichers/copyright.py` |
 | Formatter | `formatters/base.py::Formatter` | `formatters/cyclonedx16.py::CycloneDXFormatter` |
 | Validator | `validators/base.py::Validator` | `validators/jsonschema_validator.py::CycloneDXSchemaValidator`, `validators/bsi_tr03183.py::BsiTr03183Validator` |
