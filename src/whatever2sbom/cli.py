@@ -280,7 +280,7 @@ def main(argv: list[str] | None = None) -> None:
     meta  = bom.get("metadata", {})
     props = {p["name"]: p["value"] for p in meta.get("properties", [])}
 
-    print(f"SBOM written → {output}")
+    print(f"SBOM written -> {output}")
     print(f"  system          : {args.system}")
     print(f"  schema          : {args.schema} {args.spec_version}")
     for key, label in (

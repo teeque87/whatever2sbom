@@ -100,7 +100,7 @@ class BsiTr03183Validator(Validator):
         if errors:
             logger.warning("BSI TR-03183-2 check failed: %d issue(s)", len(errors))
         else:
-            logger.info("  ← BSI TR-03183-2 check passed")
+            logger.info("  <- BSI TR-03183-2 check passed")
         return errors
 
     # SBOM level (§5.2.1, §4)

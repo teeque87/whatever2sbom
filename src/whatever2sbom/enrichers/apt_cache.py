@@ -92,5 +92,5 @@ class AptCacheEnricher(Enricher):
             if pkg.original_maintainer and pkg.original_maintainer != pkg.maintainer:
                 pkg.supplier_contacts = [pkg.original_maintainer]
 
-        logger.info("  ← %d / %d packages matched", hits, len(packages))
+        logger.info("  <- %d / %d packages matched", hits, len(packages))
         return packages

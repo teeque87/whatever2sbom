@@ -277,5 +277,5 @@ class PipCollector(Collector):
         # pyvenv.cfg / python executable instead.
         _resolve_dependencies(packages, dists, default_environment())
 
-        logger.info("  ← %d packages found", len(packages))
+        logger.info("  <- %d packages found", len(packages))
         return packages

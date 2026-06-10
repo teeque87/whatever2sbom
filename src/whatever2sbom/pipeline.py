@@ -24,21 +24,21 @@ class SbomPipeline:
         self.validators = validators
 
     def run(self) -> dict:
-        logger.info("Collecting → %s", self.collector.name)
+        logger.info("Collecting -> %s", self.collector.name)
         with perf.timed(f"collect:{self.collector.name}"):
             packages: list[PackageRecord] = self.collector.collect()
 
         for enricher in self.enrichers:
-            logger.info("Enriching → %s", enricher.name)
+            logger.info("Enriching -> %s", enricher.name)
             with perf.timed(f"enrich:{enricher.name}"):
                 packages = enricher.enrich(packages)
 
-        logger.info("Formatting → %s", self.formatter.name)
+        logger.info("Formatting -> %s", self.formatter.name)
         with perf.timed(f"format:{self.formatter.name}"):
             bom = self.formatter.format(packages)
 
         for validator in self.validators:
-            logger.info("Validating → %s", validator.name)
+            logger.info("Validating -> %s", validator.name)
             with perf.timed(f"validate:{validator.name}"):
                 errors = validator.validate(bom)
                 if errors:

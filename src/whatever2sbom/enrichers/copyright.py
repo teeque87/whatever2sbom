@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 _COPYRIGHT_BASE = Path("/usr/share/doc")
 
-# Debian DEP-5 name → SPDX identifier for the most common licenses.
+# Debian DEP-5 name -> SPDX identifier for the most common licenses.
 # Only entries where we are confident about the mapping are included;
 # unmapped names are passed through as-is using the `name` field.
 _DEBIAN_TO_SPDX: dict[str, str] = {
@@ -245,5 +245,5 @@ class CopyrightEnricher(Enricher):
                 found += 1
             if copyright_notice:
                 pkg.copyright = copyright_notice
-        logger.info("  ← %d / %d licenses resolved", found, len(packages))
+        logger.info("  <- %d / %d licenses resolved", found, len(packages))
         return packages

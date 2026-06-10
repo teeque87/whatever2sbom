@@ -66,5 +66,5 @@ class CycloneDXSchemaValidator(Validator):
         if errors:
             logger.warning("Schema validation failed: %d error(s)", len(errors))
         else:
-            logger.info("  ← Validation passed")
+            logger.info("  <- Validation passed")
         return errors

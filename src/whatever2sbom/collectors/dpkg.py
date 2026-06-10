@@ -68,7 +68,7 @@ def _normalize_dep_name(token: str) -> str:
     """Strip version constraints, arch filters, arch qualifiers from one token."""
     token = re.sub(r"\(.*?\)", "", token)   # (>= 1.2)
     token = re.sub(r"\[.*?\]", "", token)   # [amd64 i386]
-    token = token.split(":")[0]             # libc6:amd64 → libc6
+    token = token.split(":")[0]             # libc6:amd64 -> libc6
     return token.strip()
 
 
@@ -76,7 +76,7 @@ def _build_provides_map(
     packages: list[PackageRecord],
     name_to_ref: dict[str, str],
 ) -> dict[str, str]:
-    """Return virtual_name → bom_ref from all Provides declarations."""
+    """Return virtual_name -> bom_ref from all Provides declarations."""
     provides_map: dict[str, str] = {}
     for pkg in packages:
         if not pkg.provides:
@@ -326,5 +326,5 @@ class DpkgCollector(Collector):
             _fill_output_mapping(pkg)
         _resolve_dependencies(packages)
 
-        logger.info("  ← %d packages found", len(packages))
+        logger.info("  <- %d packages found", len(packages))
         return packages
