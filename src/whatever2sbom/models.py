@@ -22,6 +22,7 @@ class PackageRecord:
     source_version: Optional[str] = None  # resolved source version incl. epoch (${source:Version})
     origin: Optional[str] = None       # repository origin (e.g. Ubuntu)
     maintainer: Optional[str] = None   # "Name <email>" — maps to supplier + contact
+    original_maintainer: Optional[str] = None  # Debian Original-Maintainer (pre-Ubuntu rewrite); preferred for authors
 
     # ── references ────────────────────────────────────────────────────────────
     homepage: Optional[str] = None

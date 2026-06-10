@@ -85,6 +85,16 @@ def test_authors_built_from_maintainer() -> None:
     assert bom["components"][0]["authors"] == [{"name": "Jane Doe", "email": "jane@example.com"}]
 
 
+def test_authors_prefer_original_maintainer_over_maintainer() -> None:
+    bom = _format([_compliant_package(
+        maintainer="Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>",
+        original_maintainer="John Upstream <john@example.com>",
+    )])
+    assert bom["components"][0]["authors"] == [{"name": "John Upstream", "email": "john@example.com"}]
+    # supplier still reflects who actually built/distributed the package
+    assert bom["components"][0]["supplier"]["name"] == "Ubuntu Developers"
+
+
 def test_bsi_properties_present() -> None:
     bom = _format([_compliant_package()])
     props = {p["name"]: p["value"] for p in bom["components"][0]["properties"]}

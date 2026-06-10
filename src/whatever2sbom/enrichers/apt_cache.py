@@ -7,14 +7,15 @@ from whatever2sbom.models import PackageRecord
 logger = logging.getLogger(__name__)
 
 _APT_WANTED: dict[str, str] = {
-    "package":  "package",
-    "version":  "version",
-    "sha256":   "sha256",
-    "sha1":     "sha1",
-    "sha512":   "sha512",
-    "md5sum":   "md5sum",
-    "size":     "size",
-    "filename": "filename",
+    "package":             "package",
+    "version":             "version",
+    "sha256":              "sha256",
+    "sha1":                "sha1",
+    "sha512":              "sha512",
+    "md5sum":              "md5sum",
+    "size":                "size",
+    "filename":            "filename",
+    "original-maintainer": "original_maintainer",
 }
 
 _BATCH_SIZE = 100
@@ -79,7 +80,7 @@ class AptCacheEnricher(Enricher):
             if not apt:
                 continue
             hits += 1
-            for field in ("sha256", "sha1", "sha512", "md5sum", "size", "filename"):
+            for field in ("sha256", "sha1", "sha512", "md5sum", "size", "filename", "original_maintainer"):
                 val = apt.get(field)
                 if val:
                     setattr(pkg, field, val)

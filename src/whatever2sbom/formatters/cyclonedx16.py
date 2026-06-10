@@ -114,15 +114,18 @@ def _build_supplier(maintainer: str | None) -> dict | None:
     return {"name": name}
 
 
-def _build_authors(maintainer: str | None) -> list[dict] | None:
+def _build_authors(pkg: PackageRecord) -> list[dict] | None:
     """
     Component authors per CycloneDX 1.6: the person(s) who created the
-    component. For dpkg, the closest available data is the package
-    Maintainer field.
+    component. Ubuntu rewrites Maintainer to "Ubuntu Developers" for every
+    package it builds, so prefer Original-Maintainer (the Debian packager,
+    often also the upstream author) when available, falling back to
+    Maintainer for packages that have no Original-Maintainer field.
     """
-    if not maintainer:
+    raw = pkg.original_maintainer or pkg.maintainer
+    if not raw:
         return None
-    name, email = _parse_name_email(maintainer)
+    name, email = _parse_name_email(raw)
     author: dict = {"name": name}
     if email:
         author["email"] = email
@@ -368,7 +371,7 @@ class CycloneDXFormatter(Formatter):
         if supplier:
             component["supplier"] = supplier
 
-        authors = _build_authors(pkg.maintainer)
+        authors = _build_authors(pkg)
         if authors:
             component["authors"] = authors
 
