@@ -10,20 +10,30 @@ from whatever2sbom.validators.base import Validator
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_SCHEMA = (
-    Path(__file__).parent.parent / "schema" / "cdx" / "bom-1.6.schema.json"
-)
+_SCHEMA_DIR = Path(__file__).parent.parent / "schema" / "cdx"
 
 
 class CycloneDXSchemaValidator(Validator):
-    """Validate a BOM dict against the bundled CycloneDX 1.6 JSON schema."""
+    """
+    Validate a BOM dict against a bundled CycloneDX JSON schema.
+
+    The schema file is derived from `spec_version`
+    (`schema/cdx/bom-<spec_version>.schema.json`), so adding support for a new
+    CycloneDX release is just:
+        1. Drop the new bom-<version>.schema.json (and updated
+           spdx.schema.json, if needed) into schema/cdx/.
+        2. Subclass with `spec_version = "<version>"` and register it.
+    """
 
     schema_name  = "cyclonedx"
     spec_version = "1.6"
-    name         = f"{schema_name}-{spec_version}-jsonschema"
+
+    @property
+    def name(self) -> str:
+        return f"{self.schema_name}-{self.spec_version}-jsonschema"
 
     def __init__(self, schema_path: Path | None = None) -> None:
-        path = schema_path or _DEFAULT_SCHEMA
+        path = schema_path or _SCHEMA_DIR / f"bom-{self.spec_version}.schema.json"
         spdx_path = path.parent / "spdx.schema.json"
 
         with open(path, encoding="utf-8") as fh:

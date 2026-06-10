@@ -10,6 +10,15 @@ How to add a new output schema (e.g. SPDX):
               src/whatever2sbom/validators/spdx_validator.py.
     2. Add  register_formatter("spdx", "2.3", SpdxFormatter)
             register_validator("spdx", "2.3", SpdxValidator)  at the bottom.
+
+How to add a new spec version of an existing schema (e.g. CycloneDX 1.7):
+    1. Drop the new schema/cdx/bom-1.7.schema.json (and updated
+       spdx.schema.json, if needed) into src/whatever2sbom/schema/cdx/.
+    2. Subclass the formatter/validator with `spec_version = "1.7"`,
+       overriding only what actually changed for that release.
+    3. Add  register_formatter("cyclonedx", "1.7", CycloneDXFormatter17)
+            register_validator("cyclonedx", "1.7", CycloneDXSchemaValidator17)
+       --spec-version then exposes "1.7" automatically (see spec_versions_for).
 """
 
 from __future__ import annotations

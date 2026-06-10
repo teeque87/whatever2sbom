@@ -29,6 +29,10 @@ def _compliant_package(**overrides) -> PackageRecord:
         filename="pool/main/f/foo/libfoo1_1.2.3-1_amd64.deb",
         bom_ref="pkg:deb/ubuntu/libfoo1@1.2.3-1?arch=amd64",
         purl="pkg:deb/ubuntu/libfoo1@1.2.3-1?arch=source",
+        # normally set by the dpkg collector's output-mapping pass
+        bsi_executable="non-executable",
+        bsi_archive="archive",
+        bsi_structured="structured",
     )
     defaults.update(overrides)
     return PackageRecord(**defaults)

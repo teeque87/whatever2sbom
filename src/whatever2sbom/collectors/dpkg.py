@@ -1,4 +1,5 @@
 import logging
+import re
 import subprocess
 
 from whatever2sbom._os import get_os_info
@@ -7,6 +8,134 @@ from whatever2sbom.models import PackageRecord
 from whatever2sbom import purl as _purl
 
 logger = logging.getLogger(__name__)
+
+# ── CycloneDX type/scope mapping (dpkg ${Section}/${Priority}/${Essential}) ───
+
+_LIBRARY_SECTIONS = frozenset({
+    "libs", "libdevel", "python", "perl", "ruby",
+    "java", "javascript", "lisp", "ocaml", "haskell",
+})
+_FIRMWARE_SECTIONS = frozenset({"firmware"})
+_OS_SECTIONS = frozenset({"kernel"})
+
+
+def _map_component_type(pkg: PackageRecord) -> str:
+    section = (pkg.section or "").lower().split("/")[-1]
+    if (pkg.essential or "").lower() == "yes":
+        return "application"
+    if section in _LIBRARY_SECTIONS:
+        return "library"
+    if section in _FIRMWARE_SECTIONS:
+        return "firmware"
+    if section in _OS_SECTIONS:
+        return "operating-system"
+    return "library"
+
+
+def _map_scope(pkg: PackageRecord) -> str:
+    priority = (pkg.priority or "").lower()
+    if (pkg.essential or "").lower() == "yes" or priority in ("required", "important"):
+        return "required"
+    return "optional"
+
+
+# ── extra (dpkg:*) properties ──────────────────────────────────────────────────
+
+_EXTRA_PROPERTY_FIELDS: list[tuple[str, str]] = [
+    ("section",        "dpkg:section"),
+    ("priority",       "dpkg:priority"),
+    ("installed_size", "dpkg:installed-size"),
+    ("size",           "dpkg:download-size"),
+    ("source",         "dpkg:source"),
+    ("source_name",    "dpkg:source-name"),
+    ("source_version", "dpkg:source-version"),
+    ("origin",         "dpkg:origin"),
+    ("multi_arch",     "dpkg:multi-arch"),
+]
+
+
+def _build_extra_properties(pkg: PackageRecord) -> list[tuple[str, str]]:
+    return [
+        (prop_name, str(getattr(pkg, field)))
+        for field, prop_name in _EXTRA_PROPERTY_FIELDS
+        if getattr(pkg, field, None)
+    ]
+
+
+# ── dependency graph (Depends/Pre-Depends/Provides) ────────────────────────────
+
+def _normalize_dep_name(token: str) -> str:
+    """Strip version constraints, arch filters, arch qualifiers from one token."""
+    token = re.sub(r"\(.*?\)", "", token)   # (>= 1.2)
+    token = re.sub(r"\[.*?\]", "", token)   # [amd64 i386]
+    token = token.split(":")[0]             # libc6:amd64 → libc6
+    return token.strip()
+
+
+def _build_provides_map(
+    packages: list[PackageRecord],
+    name_to_ref: dict[str, str],
+) -> dict[str, str]:
+    """Return virtual_name → bom_ref from all Provides declarations."""
+    provides_map: dict[str, str] = {}
+    for pkg in packages:
+        if not pkg.provides:
+            continue
+        bom_ref = name_to_ref.get(pkg.name, "")
+        if not bom_ref:
+            continue
+        for entry in pkg.provides.split(","):
+            virtual = _normalize_dep_name(entry)
+            if virtual and virtual not in provides_map:
+                provides_map[virtual] = bom_ref
+    return provides_map
+
+
+def _resolve_deps(
+    dep_string: str,
+    name_to_ref: dict[str, str],
+    provides_map: dict[str, str],
+) -> list[str]:
+    """
+    Parse a Depends/Pre-Depends field value and return resolved bom-refs.
+
+    - Comma-separated groups are independent deps (all collected).
+    - Pipe-separated alternatives: first installed one wins.
+    - Virtual packages resolved via provides_map.
+    """
+    resolved: list[str] = []
+    for group in dep_string.split(","):
+        group = group.strip()
+        if not group:
+            continue
+        for alt in group.split("|"):
+            name = _normalize_dep_name(alt)
+            if not name:
+                continue
+            ref = name_to_ref.get(name) or provides_map.get(name)
+            if ref:
+                resolved.append(ref)
+                break   # first satisfied alternative
+    return resolved
+
+
+def _resolve_dependencies(packages: list[PackageRecord]) -> None:
+    """Resolve each package's Pre-Depends/Depends into pkg.dependency_refs."""
+    name_to_ref = {pkg.name: pkg.bom_ref or "" for pkg in packages}
+    provides_map = _build_provides_map(packages, name_to_ref)
+
+    for pkg in packages:
+        seen: set[str] = set()
+        direct: list[str] = []
+        for field in ("pre_depends", "depends"):
+            val = getattr(pkg, field) or ""
+            if not val:
+                continue
+            for ref in _resolve_deps(val, name_to_ref, provides_map):
+                if ref not in seen and ref != pkg.bom_ref:
+                    seen.add(ref)
+                    direct.append(ref)
+        pkg.dependency_refs = direct
 
 # Fields fetched from dpkg-query.
 # status_want / status_status are used only for filtering; they are not stored
@@ -137,6 +266,21 @@ def _fill_purls(pkg: PackageRecord, distro: str, codename: str | None) -> None:
     pkg.purl = _purl.deb(distro, src_name, src_ver, "source", codename)
 
 
+def _fill_output_mapping(pkg: PackageRecord) -> None:
+    """Fill the CycloneDX type/scope/properties for one package.
+
+    A .deb is itself an `ar` archive carrying control metadata (a "structured
+    archive"); it is not directly executed, even though it may contain
+    executables.
+    """
+    pkg.component_type = _map_component_type(pkg)
+    pkg.scope = _map_scope(pkg)
+    pkg.bsi_executable = "non-executable"
+    pkg.bsi_archive = "archive"
+    pkg.bsi_structured = "structured"
+    pkg.extra_properties = _build_extra_properties(pkg)
+
+
 class DpkgCollector(Collector):
     """Collect installed packages via dpkg-query."""
 
@@ -171,11 +315,14 @@ class DpkgCollector(Collector):
                     continue
             packages.append(_to_record(raw))
 
-        # PURLs are an ecosystem fact, so the collector owns them: deb coordinates
-        # live here, and the formatter just emits pkg.purl / pkg.bom_ref verbatim.
+        # PURLs, CycloneDX type/scope/properties, and the dependency graph are
+        # all ecosystem facts, so the collector owns them: the formatter just
+        # emits these fields verbatim.
         distro, codename = _resolve_distro(self._distro, get_os_info())
         for pkg in packages:
             _fill_purls(pkg, distro, codename)
+            _fill_output_mapping(pkg)
+        _resolve_dependencies(packages)
 
         logger.info("  ← %d packages found", len(packages))
         return packages

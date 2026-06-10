@@ -2,7 +2,7 @@
 
 import pytest
 
-from whatever2sbom.formatters.cyclonedx16 import (
+from whatever2sbom.collectors.dpkg import (
     _normalize_dep_name,
     _resolve_deps,
 )

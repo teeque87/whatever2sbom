@@ -10,92 +10,7 @@ from whatever2sbom.formatters.base import Formatter
 from whatever2sbom.models import PackageRecord
 
 
-_LIBRARY_SECTIONS = frozenset({
-    "libs", "libdevel", "python", "perl", "ruby",
-    "java", "javascript", "lisp", "ocaml", "haskell",
-})
-_FIRMWARE_SECTIONS = frozenset({"firmware"})
-_OS_SECTIONS = frozenset({"kernel"})
-
-
-# ── dep-string helpers ────────────────────────────────────────────────────────
-
-def _normalize_dep_name(token: str) -> str:
-    """Strip version constraints, arch filters, arch qualifiers from one token."""
-    token = re.sub(r"\(.*?\)", "", token)   # (>= 1.2)
-    token = re.sub(r"\[.*?\]", "", token)   # [amd64 i386]
-    token = token.split(":")[0]             # libc6:amd64 → libc6
-    return token.strip()
-
-
-def _build_provides_map(
-    packages: list[PackageRecord],
-    name_to_ref: dict[str, str],
-) -> dict[str, str]:
-    """Return virtual_name → bom_ref from all Provides declarations."""
-    provides_map: dict[str, str] = {}
-    for pkg in packages:
-        if not pkg.provides:
-            continue
-        bom_ref = name_to_ref.get(pkg.name, "")
-        if not bom_ref:
-            continue
-        for entry in pkg.provides.split(","):
-            virtual = _normalize_dep_name(entry)
-            if virtual and virtual not in provides_map:
-                provides_map[virtual] = bom_ref
-    return provides_map
-
-
-def _resolve_deps(
-    dep_string: str,
-    name_to_ref: dict[str, str],
-    provides_map: dict[str, str],
-) -> list[str]:
-    """
-    Parse a Depends/Pre-Depends field value and return resolved bom-refs.
-
-    - Comma-separated groups are independent deps (all collected).
-    - Pipe-separated alternatives: first installed one wins.
-    - Virtual packages resolved via provides_map.
-    """
-    resolved: list[str] = []
-    for group in dep_string.split(","):
-        group = group.strip()
-        if not group:
-            continue
-        for alt in group.split("|"):
-            name = _normalize_dep_name(alt)
-            if not name:
-                continue
-            ref = name_to_ref.get(name) or provides_map.get(name)
-            if ref:
-                resolved.append(ref)
-                break   # first satisfied alternative
-    return resolved
-
-
 # ── component field builders ──────────────────────────────────────────────────
-
-def _map_type(pkg: PackageRecord) -> str:
-    section = (pkg.section or "").lower().split("/")[-1]
-    if (pkg.essential or "").lower() == "yes":
-        return "application"
-    if section in _LIBRARY_SECTIONS:
-        return "library"
-    if section in _FIRMWARE_SECTIONS:
-        return "firmware"
-    if section in _OS_SECTIONS:
-        return "operating-system"
-    return "library"
-
-
-def _map_scope(pkg: PackageRecord) -> str:
-    priority = (pkg.priority or "").lower()
-    if (pkg.essential or "").lower() == "yes" or priority in ("required", "important"):
-        return "required"
-    return "optional"
-
 
 def _parse_name_email(raw: str) -> tuple[str, str | None]:
     """Split "Name <email>" into (name, email | None)."""
@@ -212,12 +127,14 @@ def _build_effective_license_property(pkg: PackageRecord) -> dict | None:
 
 def _build_bsi_properties(pkg: PackageRecord) -> list[dict]:
     """
-    Required component properties per BSI TR-03183-2 §5.2.2: filename,
-    executable / archive / structured.
+    Component properties per BSI TR-03183-2 §5.2.2: filename, executable /
+    archive / structured, effective license.
 
-    A .deb is itself an `ar` archive carrying control metadata (a "structured
-    archive"); it is not directly executed, even though it may contain
-    executables.
+    The executable/archive/structured classification is ecosystem-specific
+    (e.g. a .deb is itself an `ar` archive carrying control metadata, while an
+    installed npm/pip package is a plain unpacked directory) so the collector
+    decides those values; here they're only emitted when the collector set
+    them.
     """
     props: list[dict] = []
     if pkg.filename:
@@ -225,9 +142,12 @@ def _build_bsi_properties(pkg: PackageRecord) -> list[dict]:
             "name": "bsi:component:filename",
             "value": PurePosixPath(pkg.filename).name,
         })
-    props.append({"name": "bsi:component:executable", "value": "non-executable"})
-    props.append({"name": "bsi:component:archive", "value": "archive"})
-    props.append({"name": "bsi:component:structured", "value": "structured"})
+    if pkg.bsi_executable:
+        props.append({"name": "bsi:component:executable", "value": pkg.bsi_executable})
+    if pkg.bsi_archive:
+        props.append({"name": "bsi:component:archive", "value": pkg.bsi_archive})
+    if pkg.bsi_structured:
+        props.append({"name": "bsi:component:structured", "value": pkg.bsi_structured})
 
     effective_license = _build_effective_license_property(pkg)
     if effective_license:
@@ -245,23 +165,9 @@ def _build_ext_refs(pkg: PackageRecord) -> list[dict]:
     return refs
 
 
-def _build_properties(pkg: PackageRecord) -> list[dict]:
-    prop_map: list[tuple[str, str]] = [
-        ("section",        "dpkg:section"),
-        ("priority",       "dpkg:priority"),
-        ("installed_size", "dpkg:installed-size"),
-        ("size",           "dpkg:download-size"),
-        ("source",         "dpkg:source"),
-        ("source_name",    "dpkg:source-name"),
-        ("source_version", "dpkg:source-version"),
-        ("origin",         "dpkg:origin"),
-        ("multi_arch",     "dpkg:multi-arch"),
-    ]
-    return [
-        {"name": prop_name, "value": str(getattr(pkg, field))}
-        for field, prop_name in prop_map
-        if getattr(pkg, field, None)
-    ]
+def _build_extra_properties(pkg: PackageRecord) -> list[dict]:
+    """Ecosystem-specific properties (e.g. dpkg:section), passed through verbatim."""
+    return [{"name": name, "value": value} for name, value in pkg.extra_properties]
 
 
 # ── formatter ─────────────────────────────────────────────────────────────────
@@ -272,7 +178,10 @@ class CycloneDXFormatter(Formatter):
     schema_name      = "cyclonedx"
     spec_version     = "1.6"
     output_extension = "cdx.json"
-    name             = f"{schema_name}-{spec_version}"
+
+    @property
+    def name(self) -> str:
+        return f"{self.schema_name}-{self.spec_version}"
 
     def __init__(
         self,
@@ -298,17 +207,8 @@ class CycloneDXFormatter(Formatter):
         os_info  = get_os_info()
         distro   = self._distro or os_info.get("id", "debian")
 
-        # PURLs come from the collector: bom_ref is the unique per-binary
-        # coordinate (keeps the dependency graph intact); the matchable purl is
-        # the source coordinate scanners key on. Both are emitted verbatim here.
-        name_to_ref: dict[str, str] = {
-            pkg.name: pkg.bom_ref or ""
-            for pkg in packages
-        }
-        provides_map = _build_provides_map(packages, name_to_ref)
-
         components   = [self._build_component(pkg) for pkg in packages]
-        dependencies = self._build_dependencies(packages, name_to_ref, provides_map)
+        dependencies = self._build_dependencies(packages)
         metadata     = self._build_metadata(os_info, distro, components)
 
         # metadata.component is always the single root of the dependency tree.
@@ -352,16 +252,16 @@ class CycloneDXFormatter(Formatter):
         return "os-component"
 
     def _build_component(self, pkg: PackageRecord) -> dict:
-        # PURLs come from the collector: bom_ref is the unique per-binary
-        # coordinate (keeps the dependency graph intact); the matchable purl is
-        # the source coordinate scanners key on.
+        # type/scope/purl/bom_ref are ecosystem facts decided by the collector:
+        # bom_ref is the unique per-binary coordinate (keeps the dependency
+        # graph intact); purl is the source coordinate scanners key on.
         component: dict = {
-            "type":    _map_type(pkg),
+            "type":    pkg.component_type,
             "bom-ref": pkg.bom_ref or "",
             "name":    pkg.name,
             "version": pkg.version,
             "purl":    pkg.purl or "",
-            "scope":   _map_scope(pkg),
+            "scope":   pkg.scope,
         }
 
         if pkg.description:
@@ -390,31 +290,19 @@ class CycloneDXFormatter(Formatter):
         if ext_refs:
             component["externalReferences"] = ext_refs
 
-        props = _build_properties(pkg) + _build_bsi_properties(pkg)
+        props = _build_extra_properties(pkg) + _build_bsi_properties(pkg)
         component["properties"] = props
 
         return component
 
-    def _build_dependencies(
-        self,
-        packages: list[PackageRecord],
-        name_to_ref: dict[str, str],
-        provides_map: dict[str, str],
-    ) -> list[dict]:
-        deps: list[dict] = []
-        for pkg in packages:
-            direct: list[str] = []
-            seen: set[str] = set()
-            for field in ("pre_depends", "depends"):
-                val = getattr(pkg, field) or ""
-                if not val:
-                    continue
-                for ref in _resolve_deps(val, name_to_ref, provides_map):
-                    if ref not in seen and ref != name_to_ref.get(pkg.name):
-                        seen.add(ref)
-                        direct.append(ref)
-            deps.append({"ref": name_to_ref[pkg.name], "dependsOn": direct})
-        return deps
+    def _build_dependencies(self, packages: list[PackageRecord]) -> list[dict]:
+        # Dependency resolution is an ecosystem fact decided by the collector
+        # (e.g. parsing dpkg's Depends/Provides syntax); dependency_refs is
+        # already a deduped list of resolved bom-refs, emitted verbatim.
+        return [
+            {"ref": pkg.bom_ref or "", "dependsOn": pkg.dependency_refs}
+            for pkg in packages
+        ]
 
     def _build_metadata(
         self, os_info: dict[str, str], distro: str, components: list[dict]

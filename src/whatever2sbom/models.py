@@ -62,3 +62,20 @@ class PackageRecord:
     #             binary coordinate incl. arch).
     purl: Optional[str] = None
     bom_ref: Optional[str] = None
+
+    # ── output mapping (computed by the collector, emitted verbatim) ──────────
+    # Ecosystem-specific classification/parsing rules live in the collector, so
+    # formatters stay generic across ecosystems (deb, pip, npm, ...).
+    component_type: str = "library"   # CycloneDX component "type"
+    scope: str = "required"           # CycloneDX component "scope"
+    dependency_refs: list[str] = field(default_factory=list)  # resolved bom-refs of direct deps
+
+    # BSI TR-03183-2 §5.2.2 "nature of the component" properties. None means
+    # "not determined for this ecosystem" and the property is omitted.
+    bsi_executable: Optional[str] = None   # "executable" | "non-executable"
+    bsi_archive: Optional[str] = None      # "archive" | "non-archive"
+    bsi_structured: Optional[str] = None   # "structured" | "unstructured"
+
+    # Ecosystem-specific (name, value) properties passed through verbatim,
+    # e.g. ("dpkg:section", "libs").
+    extra_properties: list[tuple[str, str]] = field(default_factory=list)
