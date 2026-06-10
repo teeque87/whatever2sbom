@@ -13,7 +13,7 @@ from whatever2sbom.models import PackageRecord
     ("1.0",                  "1.0"),
     ("1.0-1ubuntu1",         "1.0-1ubuntu1"),
     ("1.0+dfsg-1",           "1.0%2Bdfsg-1"),
-    ("2:1.02.205-2ubuntu3",  "2%3A1.02.205-2ubuntu3"),
+    ("2:1.02.205-2ubuntu3",  "2:1.02.205-2ubuntu3"),
     ("1.0~rc1",              "1.0~rc1"),
 ])
 def test_quote_version(version: str, expected: str) -> None:
@@ -66,7 +66,7 @@ def test_resolve_distro(override, os_info, want_distro, want_codename):
         PackageRecord(name="libdevmapper1.02.1", version="2:1.02.205-2ubuntu3", architecture="amd64",
                       source_name="lvm2", source_version="2.03.31-2ubuntu3"),
         "pkg:deb/ubuntu/lvm2@2.03.31-2ubuntu3?arch=source&distro=resolute",
-        "pkg:deb/ubuntu/libdevmapper1.02.1@2%3A1.02.205-2ubuntu3?arch=amd64&distro=resolute",
+        "pkg:deb/ubuntu/libdevmapper1.02.1@2:1.02.205-2ubuntu3?arch=amd64&distro=resolute",
     ),
     (
         PackageRecord(name="bash", version="5.3-2ubuntu1", architecture="amd64"),

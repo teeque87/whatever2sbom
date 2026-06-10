@@ -1,8 +1,10 @@
 import re
 import uuid
 from datetime import datetime, timezone
+from pathlib import PurePosixPath
 
 import whatever2sbom
+from whatever2sbom import spdx
 from whatever2sbom._os import get_os_info
 from whatever2sbom.formatters.base import Formatter
 from whatever2sbom.models import PackageRecord
@@ -120,9 +122,50 @@ def _build_hashes(pkg: PackageRecord) -> list[dict]:
 
 
 def _build_licenses(pkg: PackageRecord) -> list[dict] | None:
+    """
+    Build a CycloneDX licenseChoice from pkg.licenses, preferring SPDX license
+    identifiers / expressions per BSI TR-03183-2 §6.1.
+
+    A single license that is itself an SPDX expression (e.g. "MIT OR
+    Apache-2.0") is emitted using the dedicated `expression` form, since
+    CycloneDX does not allow mixing `expression` with `license` entries.
+    """
     if not pkg.licenses:
         return None
-    return [{"license": {"name": lic}} for lic in pkg.licenses]
+
+    classified = [spdx.classify_license(lic) for lic in pkg.licenses]
+
+    if len(classified) == 1 and classified[0]["kind"] == "expression":
+        return [{"expression": classified[0]["value"]}]
+
+    result: list[dict] = []
+    for c in classified:
+        if c["kind"] == "id":
+            result.append({"license": {"id": c["value"]}})
+        else:
+            result.append({"license": {"name": c["value"]}})
+    return result
+
+
+def _build_bsi_properties(pkg: PackageRecord) -> list[dict]:
+    """
+    Required component properties per BSI TR-03183-2 §5.2.2: filename,
+    executable / archive / structured.
+
+    A .deb is itself an `ar` archive carrying control metadata (a "structured
+    archive"); it is not directly executed, even though it may contain
+    executables.
+    """
+    props: list[dict] = []
+    if pkg.filename:
+        props.append({
+            "name": "bsi:component:filename",
+            "value": PurePosixPath(pkg.filename).name,
+        })
+    props.append({"name": "bsi:component:executable", "value": "non-executable"})
+    props.append({"name": "bsi:component:archive", "value": "archive"})
+    props.append({"name": "bsi:component:structured", "value": "structured"})
+    return props
 
 
 def _build_ext_refs(pkg: PackageRecord) -> list[dict]:
@@ -215,7 +258,22 @@ class CycloneDXFormatter(Formatter):
             "metadata":     metadata,
             "components":   components,
             "dependencies": dependencies,
+            "compositions": self._build_compositions(root_ref, pkg_refs),
         }
+
+    def _build_compositions(self, root_ref: str, pkg_refs: list[str]) -> list[dict]:
+        """
+        Indicate dependency-completeness per BSI TR-03183-2 §5.2.2.
+
+        Dependencies not satisfied by an installed package (e.g. unresolved
+        virtual packages or alternatives) are silently dropped during
+        resolution, so the recorded dependency graph cannot be asserted as
+        "complete" — it is explicitly marked "unknown".
+        """
+        return [{
+            "aggregate": "unknown",
+            "dependencies": [root_ref, *pkg_refs],
+        }]
 
     # ── private helpers ───────────────────────────────────────────────────────
 
@@ -259,9 +317,8 @@ class CycloneDXFormatter(Formatter):
         if ext_refs:
             component["externalReferences"] = ext_refs
 
-        props = _build_properties(pkg)
-        if props:
-            component["properties"] = props
+        props = _build_properties(pkg) + _build_bsi_properties(pkg)
+        component["properties"] = props
 
         return component
 

@@ -21,6 +21,7 @@ import whatever2sbom
 from whatever2sbom import registry
 from whatever2sbom.pipeline import SbomPipeline
 from whatever2sbom.validators.base import ValidationError
+from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -70,6 +71,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "-v", "--verbose",
         action="store_true",
         help="Enable debug-level logging",
+    )
+    p.add_argument(
+        "--bsi-tr-compliant",
+        action="store_true",
+        dest="bsi_tr_compliant",
+        help=(
+            "Additionally validate the SBOM against the BSI TR-03183-2 v2.1.0 "
+            "data-field requirements (SPDX licences, SHA-512 hashes, creator "
+            "contact info, executable/archive/structured properties, …)"
+        ),
     )
 
     # ── product metadata (BSI TR-03183) ──────────────────────────────────────
@@ -169,12 +180,16 @@ def main(argv: list[str] | None = None) -> None:
     collector = system.make_collector(args)
     enrichers = system.make_enrichers(args)
 
+    validators = [validator]
+    if args.bsi_tr_compliant:
+        validators.append(BsiTr03183Validator())
+
     # ── run pipeline (validation is always included) ──────────────────────────
     pipeline = SbomPipeline(
         collector=collector,
         enrichers=enrichers,
         formatter=formatter,
-        validators=[validator],
+        validators=validators,
     )
 
     try:
