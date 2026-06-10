@@ -29,9 +29,19 @@ def license_ids() -> frozenset[str]:
 
 
 def is_spdx_id(token: str) -> bool:
-    """True if `token` (with optional trailing '+') is a known SPDX identifier."""
-    base = token[:-1] if token.endswith("+") else token
-    return base in license_ids()
+    """True if `token` is exactly a known SPDX license/exception identifier."""
+    return token in license_ids()
+
+
+def is_spdx_id_with_later(token: str) -> bool:
+    """
+    True if `token` is `<id>+`, the legacy SPDX "or later version" suffix,
+    where `<id>` (without the trailing '+') is a known SPDX identifier.
+
+    This is valid SPDX *expression* syntax even when `token` itself is not a
+    literal entry in the SPDX license list (e.g. "GFDL-1.2+").
+    """
+    return token.endswith("+") and token[:-1] in license_ids()
 
 
 def is_license_ref(token: str) -> bool:
@@ -71,7 +81,7 @@ def is_spdx_expression(expr: str) -> bool:
         else:
             if not expect_operand:
                 return False
-            if not (is_spdx_id(tok) or is_license_ref(tok)):
+            if not (is_spdx_id(tok) or is_spdx_id_with_later(tok) or is_license_ref(tok)):
                 return False
             expect_operand = False
 
