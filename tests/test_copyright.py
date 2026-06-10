@@ -1,6 +1,6 @@
 """Unit tests for DEP-5 copyright file parsing."""
 
-from whatever2sbom.enrichers.copyright import _parse_dep5, _DEBIAN_TO_SPDX
+from whatever2sbom.enrichers.copyright import _is_dep5, _parse_dep5, _DEBIAN_TO_SPDX
 
 
 _DEP5_SIMPLE = """\
@@ -76,3 +76,31 @@ def test_debian_to_spdx_mapping() -> None:
     assert _DEBIAN_TO_SPDX["GPL-2+"] == "GPL-2.0-or-later"
     assert _DEBIAN_TO_SPDX["Apache-2"] == "Apache-2.0"
     assert _DEBIAN_TO_SPDX["MIT"] == "MIT"
+
+
+def test_is_dep5_current_format_url() -> None:
+    assert _is_dep5("Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
+
+
+def test_is_dep5_legacy_format_specification_field() -> None:
+    # Older DEP-5 drafts used "Format-Specification:" with a svn.debian.org URL.
+    assert _is_dep5("Format-Specification: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=59\n")
+
+
+def test_is_dep5_false_for_freeform_copyright() -> None:
+    assert not _is_dep5("This package was debianized by Someone <someone@example.com>.\n")
+
+
+def test_parse_dep5_legacy_format_specification() -> None:
+    content = """\
+Format-Specification: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=59
+Source: https://launchpad.net/aptdaemon
+
+Files: *
+Copyright: © 2008-2009 Sebastian Heinlein <devel@glatzor.de>
+License: GPL-2+
+"""
+    assert _is_dep5(content)
+    licenses, notice = _parse_dep5(content)
+    assert licenses == ["GPL-2+"]
+    assert notice == "© 2008-2009 Sebastian Heinlein <devel@glatzor.de>"

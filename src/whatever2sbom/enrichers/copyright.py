@@ -137,6 +137,24 @@ def _parse_dep5(content: str) -> tuple[list[str], str | None]:
     return licenses, notice
 
 
+def _is_dep5(content: str) -> bool:
+    """
+    True if `content` is a DEP-5 machine-readable copyright file.
+
+    DEP-5 files start with a "Format:" field naming the spec. Older drafts
+    used "Format-Specification:" instead, with URLs other than the current
+    https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/ (e.g.
+    "http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=59"), so match on
+    the field name only rather than a specific URL.
+    """
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        return stripped.lower().startswith(("format:", "format-specification:"))
+    return False
+
+
 def _read_package_metadata(pkg_name: str) -> tuple[list[str], str | None]:
     path = _COPYRIGHT_BASE / pkg_name / "copyright"
     try:
@@ -144,8 +162,7 @@ def _read_package_metadata(pkg_name: str) -> tuple[list[str], str | None]:
     except (FileNotFoundError, PermissionError):
         return [], None
 
-    # DEP-5 files start with a Format: header
-    if content.lstrip().startswith("Format:") or "Format: https://www.debian.org" in content[:512]:
+    if _is_dep5(content):
         names, notice = _parse_dep5(content)
         return [_DEBIAN_TO_SPDX.get(n, n) for n in names], notice
 
