@@ -22,6 +22,15 @@ def quote_version(version: str) -> str:
     return _urlquote(version, safe=".-:~")
 
 
+def pypi(name: str, version: str) -> str:
+    """Build a PyPI package-url: pkg:pypi/<name>@<version>.
+
+    `name` must already be PEP 503 normalized (lowercase, '-' separators) by
+    the caller — the PURL spec requires this for pkg:pypi.
+    """
+    return f"pkg:pypi/{name}@{quote_version(version)}"
+
+
 def deb(distro: str, name: str, version: str, arch: str, codename: str | None) -> str:
     """Build a Debian/Ubuntu package-url:
 

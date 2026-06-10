@@ -136,8 +136,10 @@ def output_extension_for(schema: str) -> str:
 
 from whatever2sbom.formatters.cyclonedx16 import CycloneDXFormatter          # noqa: E402
 from whatever2sbom.systems.dpkg import DpkgSystem                            # noqa: E402
+from whatever2sbom.systems.pip import PipSystem                              # noqa: E402
 from whatever2sbom.validators.jsonschema_validator import CycloneDXSchemaValidator  # noqa: E402
 
 register_system(DpkgSystem())
+register_system(PipSystem())
 register_formatter(CycloneDXFormatter.schema_name, CycloneDXFormatter.spec_version, CycloneDXFormatter)
 register_validator(CycloneDXSchemaValidator.schema_name, CycloneDXSchemaValidator.spec_version, CycloneDXSchemaValidator)

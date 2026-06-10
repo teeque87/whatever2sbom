@@ -109,10 +109,11 @@ def _build_parser() -> argparse.ArgumentParser:
     prod.add_argument(
         "--product-type",
         metavar="TYPE",
-        default="firmware",
+        default=None,
         help=(
             "CycloneDX component type for the product "
-            "(firmware | application | container | device | …)  (default: firmware)"
+            "(firmware | application | container | device | …)  "
+            "(default: depends on --system, e.g. firmware for dpkg, application for pip)"
         ),
     )
     prod.add_argument(
@@ -191,6 +192,7 @@ def main(argv: list[str] | None = None) -> None:
     # ── resolve pipeline components ───────────────────────────────────────────
     try:
         system    = registry.get_system(args.system)
+        product_type = args.product_type or system.default_product_type
         # Forward all parsed args as kwargs; registry filters to accepted params.
         formatter = registry.get_formatter(
             args.schema,
@@ -198,7 +200,7 @@ def main(argv: list[str] | None = None) -> None:
             distro=getattr(args, "distro", None),
             product_name=args.product_name,
             product_version=args.product_version,
-            product_type=args.product_type,
+            product_type=product_type,
             product_supplier=args.product_supplier,
             product_supplier_url=args.product_supplier_url or [],
             product_purl=args.product_purl,

@@ -2,7 +2,7 @@
 
 import pytest
 
-from whatever2sbom.purl import deb, quote_version
+from whatever2sbom.purl import deb, pypi, quote_version
 from whatever2sbom.collectors.dpkg import _fill_purls, _resolve_distro
 from whatever2sbom.models import PackageRecord
 
@@ -38,6 +38,16 @@ def test_quote_version(version: str, expected: str) -> None:
 ])
 def test_deb(distro, name, version, arch, codename, expected):
     assert deb(distro, name, version, arch, codename) == expected
+
+
+# ── pypi() PURL builder ──────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("name,version,expected", [
+    ("flask",    "3.1.0",  "pkg:pypi/flask@3.1.0"),
+    ("foo-bar",  "1.0+local", "pkg:pypi/foo-bar@1.0%2Blocal"),
+])
+def test_pypi(name, version, expected):
+    assert pypi(name, version) == expected
 
 
 # ── _resolve_distro ───────────────────────────────────────────────────────────

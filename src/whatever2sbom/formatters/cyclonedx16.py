@@ -10,6 +10,17 @@ from whatever2sbom.formatters.base import Formatter
 from whatever2sbom.models import PackageRecord
 
 
+_NAME_NORMALIZE_RE = re.compile(r"[-_.]+")
+
+
+def _normalize_component_name(name: str) -> str:
+    """Loosely normalize a component name for comparison (PEP 503-ish:
+    lowercase, runs of -_. collapse to '-'). Used to recognize when a scanned
+    package *is* the product being described (e.g. scanning a project's own
+    venv, which includes the project itself)."""
+    return _NAME_NORMALIZE_RE.sub("-", name).lower()
+
+
 # ── component field builders ──────────────────────────────────────────────────
 
 def _parse_name_email(raw: str) -> tuple[str, str | None]:
@@ -232,9 +243,20 @@ class CycloneDXFormatter(Formatter):
         metadata     = self._build_metadata(os_info, distro, components)
 
         # metadata.component is always the single root of the dependency tree.
+        # If one of the scanned packages *is* the product (e.g. scanning a
+        # project's own venv, which includes the project itself), it must not
+        # be listed as a dependency of itself -- and the root's *direct*
+        # dependencies are that package's own resolved dependency_refs (its
+        # Requires-Dist), not every package in the environment. Otherwise
+        # (e.g. scanning a dpkg system as a whole), every package is a direct
+        # part of what was scanned.
         root_ref = self._root_bom_ref()
-        pkg_refs = [p.bom_ref or "" for p in packages]
-        dependencies.insert(0, {"ref": root_ref, "dependsOn": pkg_refs})
+        pkg_refs = [
+            p.bom_ref or "" for p in packages if not self._is_product_component(p)
+        ]
+        product_pkg = next((p for p in packages if self._is_product_component(p)), None)
+        root_deps = product_pkg.dependency_refs if product_pkg is not None else pkg_refs
+        dependencies.insert(0, {"ref": root_ref, "dependsOn": root_deps})
 
         return {
             "bomFormat":    "CycloneDX",
@@ -260,6 +282,12 @@ class CycloneDXFormatter(Formatter):
             "aggregate": "unknown",
             "dependencies": [root_ref, *pkg_refs],
         }]
+
+    def _is_product_component(self, pkg: PackageRecord) -> bool:
+        """True if `pkg` is the product itself (--product-name), not a dependency of it."""
+        if not self._product_name:
+            return False
+        return _normalize_component_name(pkg.name) == _normalize_component_name(self._product_name)
 
     # ── private helpers ───────────────────────────────────────────────────────
 

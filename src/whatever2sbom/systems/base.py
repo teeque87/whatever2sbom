@@ -34,6 +34,13 @@ class SystemPlugin(ABC):
         """One-line description shown in --help."""
         ...
 
+    @property
+    def default_product_type(self) -> str:
+        """CycloneDX component type for metadata.component when --product-type
+        is not given. Override for ecosystems where "firmware" doesn't fit
+        (e.g. "application" for a pip virtualenv)."""
+        return "firmware"
+
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """
         Register system-specific CLI arguments on the shared parser.
