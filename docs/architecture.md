@@ -9,7 +9,7 @@ Every run builds and executes a `SbomPipeline`
 ([`pipeline.py`](https://github.com/teeque87/whatever2sbom/blob/main/src/whatever2sbom/pipeline.py)):
 
 ```
-Collector  →  Enricher (0..n)  →  Formatter  →  Validator (1..n)
+Collector  →  Enricher (0..n)  →  Formatter  →  Plugin (0..n)  →  Validator (1..n)
 ```
 
 1. **Collector** — gathers raw package data from one ecosystem (e.g. the local `dpkg` database)
@@ -19,7 +19,10 @@ Collector  →  Enricher (0..n)  →  Formatter  →  Validator (1..n)
    independent of each other.
 3. **Formatter** — converts the enriched `PackageRecord`s into the final output document (a dict
    that gets serialized to JSON), e.g. a CycloneDX 1.6 BOM.
-4. **Validators** — check the formatted document. Schema validation always runs and is fatal
+4. **Plugins** — optional post-processing scripts (enabled with `--plugin`) that take the formatted
+   document and return a modified one. They run last but *before* validation, so anything they emit
+   is still schema-checked. None run unless `--plugin` is given. See [Plugins](plugins.md).
+5. **Validators** — check the formatted document. Schema validation always runs and is fatal
    (`ValidationError` aborts the run before anything is written).
 
 ```python
@@ -29,6 +32,8 @@ class SbomPipeline:
         for enricher in self.enrichers:
             packages = enricher.enrich(packages)
         bom = self.formatter.format(packages)
+        for plugin in self.plugins:
+            bom = plugin.run(bom)
         for validator in self.validators:
             errors = validator.validate(bom)
             if errors:
@@ -50,7 +55,11 @@ is the single source of truth for what's available:
 
 `cli.py` builds its `argparse` choices (`--system`, `--schema`, available `--spec-version`s,
 default file extension, …) entirely from what's registered — nothing is hardcoded. Registering a
-new plugin automatically makes it selectable on the command line.
+new system/formatter/validator automatically makes it selectable on the command line.
+
+Post-processing [plugins](plugins.md) are the exception: they aren't registered here. They're
+discovered by filename across a search path at runtime (`--plugin <name>`), so adding one is just
+dropping a `.py` file in a plugin directory — no code change or registration needed.
 
 ## A `SystemPlugin` ties it together
 
@@ -103,6 +112,7 @@ else (e.g. `("dpkg:section", "libs")`) — formatters emit these as CycloneDX `p
 | Enricher | `enrichers/base.py::Enricher` | `enrichers/apt_cache.py`, `enrichers/copyright.py` |
 | Formatter | `formatters/base.py::Formatter` | `formatters/cyclonedx16.py::CycloneDXFormatter` |
 | Validator | `validators/base.py::Validator` | `validators/jsonschema_validator.py::CycloneDXSchemaValidator`, `validators/bsi_tr03183.py::BsiTr03183Validator` |
+| Plugin | `plugins/base.py` (`apply(bom, config)` contract) | `plugins/builtin/patch-purl.py` |
 
 Continue to [Extending whatever2sbom](extending.md) for step-by-step guides and code examples for
 each of these.
