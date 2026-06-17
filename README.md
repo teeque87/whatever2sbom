@@ -22,8 +22,9 @@ compliance.
   no "trust me" mode; a schema failure is fatal and nothing is written.
 - **Runs offline.** All schemas and reference data (CycloneDX, the SPDX license list and
   expressions) ship with the tool. No network access at runtime, by design.
-- **Checks compliance.** An optional pass reports precisely which BSI TR-03183-2 data fields are
-  present or missing, so an SBOM can be measured against the standard rather than guessed at.
+- **Checks compliance.** An optional pass reports which BSI TR-03183-2 data fields are present or
+  missing, as a guideline for measuring an SBOM against the standard. This check is a work in
+  progress and advisory only — it is not a certification or a guarantee of compliance.
 - **Extends cleanly.** New ecosystems and output schemas are added as small, self-contained pieces,
   and the finished document can be post-processed by optional plugins (for example, rewriting
   package-URL namespaces) without touching the core.
