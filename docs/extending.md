@@ -10,6 +10,11 @@ All built-in implementations live under `src/whatever2sbom/` and are good refere
 for a system, `cyclonedx16.py` for a formatter, `jsonschema_validator.py` and `bsi_tr03183.py` for
 validators.
 
+!!! tip "Just want to tweak the finished SBOM?"
+    If you only need to post-process the generated document — patch PURLs, add properties, drop
+    components — you don't need a formatter or a registry entry. Write a small **plugin** instead:
+    a single script that runs last before validation. See the [Plugins guide](plugins.md).
+
 ## Adding a new system
 
 A system is "an ecosystem you can pass to `--system`" — for example `pip`, `npm`, or a container

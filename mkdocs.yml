@@ -37,6 +37,7 @@ nav:
       - pip: systems/pip.md
   - Output format: output.md
   - Validation: validation.md
+  - Plugins: plugins.md
   - Architecture: architecture.md
   - Extending whatever2sbom: extending.md
   - Performance: performance.md

@@ -4,6 +4,8 @@
 whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
               [-o FILE] [-v] [--performance-metrics] [--bsi-tr-compliant]
               --product-supplier NAME [product metadata options]
+              [--plugin NAME ...] [--plugin-config NAME:KEY=VALUE ...]
+              [--plugin-config-file FILE]
               [system-specific options]
 ```
 
@@ -42,6 +44,18 @@ the scanned thing isn't the host OS and can't fall back to `/etc/os-release`.
 | `--product-purl PURL` | Package-URL identifying the product, e.g. `pkg:generic/acme/fw@1.0`. Adds the product as the dependency-tree root. |
 | `--author 'Name <email>'` | SBOM author. May be given multiple times. Populates `metadata.authors`. |
 
+## Plugins
+
+Optional post-processing scripts that run **last** — after formatting, just before schema
+validation, so their output is still validated. See the [Plugins guide](plugins.md) for how to
+write one and how plugin files are discovered.
+
+| Option | Description |
+|---|---|
+| `--plugin NAME` | Enable a plugin by script name (without `.py`). May be given multiple times; plugins run in the order listed. |
+| `--plugin-config NAME:KEY=VALUE` | Configure a plugin. May be given multiple times. A comma-separated `VALUE` becomes a list, e.g. `--plugin-config patch-purl:packages=bash,coreutils`. |
+| `--plugin-config-file FILE` | JSON file mapping plugin name → config object. Merged *under* any inline `--plugin-config` values (which win on conflict). |
+
 ## `dpkg` system options
 
 Active when `--system dpkg` (the default). See [dpkg](systems/dpkg.md) for what each enrichment
@@ -68,4 +82,4 @@ resolution details.
 | Code | Meaning |
 |---|---|
 | `0` | SBOM written successfully (a non-empty `--bsi-tr-compliant` report does **not** change this). |
-| `1` | Configuration error (e.g. unknown `--schema`/`--spec-version` combination), schema validation failure, or a runtime error during collection/enrichment/formatting. |
+| `1` | Configuration error (e.g. unknown `--schema`/`--spec-version` combination), a plugin error (not found, bad config, or a failure while running), schema validation failure, or a runtime error during collection/enrichment/formatting. |
