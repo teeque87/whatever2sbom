@@ -29,16 +29,18 @@ extra_css:
 
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
-  - CLI reference: cli-reference.md
-  - Systems and schemas:
-      - Overview: systems/index.md
-      - dpkg: systems/dpkg.md
-      - pip: systems/pip.md
-  - Output format: output.md
-  - Validation: validation.md
-  - Plugins: plugins.md
-  - Architecture: architecture.md
-  - Extending whatever2sbom: extending.md
-  - Performance: performance.md
-  - Releasing: releasing.md
+  - Usage:
+      - Getting started: getting-started.md
+      - CLI reference: cli-reference.md
+      - Systems and schemas:
+          - Overview: systems/index.md
+          - dpkg: systems/dpkg.md
+          - pip: systems/pip.md
+      - Output format: output.md
+      - Validation: validation.md
+      - Performance: performance.md
+  - Development:
+      - Architecture: architecture.md
+      - Extending whatever2sbom: extending.md
+      - Plugins: plugins.md
+      - Releasing: releasing.md

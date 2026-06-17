@@ -41,6 +41,7 @@ the scanned thing isn't the host OS and can't fall back to `/etc/os-release`.
 | `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, `operating-system`, …) for `metadata.component` *when `--product-name` is set*. Default depends on `--system`: `operating-system` for `dpkg`, `application` for `pip`. (For `dpkg` without `--product-name`, `metadata.component` describes the host OS, type `operating-system`, regardless of this option.) |
 | `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). |
 | `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
+| `--product-supplier-email EMAIL` | Supplier contact e-mail address. Satisfies the BSI TR-03183-2 creator-contact requirement (§3.2.2 / §5.2.1). |
 | `--product-purl PURL` | Package-URL identifying the product, e.g. `pkg:generic/acme/fw@1.0`. Adds the product as the dependency-tree root. |
 | `--author 'Name <email>'` | SBOM author. May be given multiple times. Populates `metadata.authors`. |
 
