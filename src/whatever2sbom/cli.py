@@ -131,6 +131,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Supplier URL (may be given multiple times)",
     )
     prod.add_argument(
+        "--product-supplier-email",
+        metavar="EMAIL",
+        dest="product_supplier_email",
+        help=(
+            "Supplier contact e-mail address "
+            "(satisfies BSI TR-03183-2 §3.2.2 / §5.2.1 creator contact requirement)"
+        ),
+    )
+    prod.add_argument(
         "--product-purl",
         metavar="PURL",
         help="Package-URL that uniquely identifies the product (e.g. pkg:generic/acme/fw@1.0)",
@@ -216,6 +225,7 @@ def main(argv: list[str] | None = None) -> None:
             product_type=product_type,
             product_supplier=args.product_supplier,
             product_supplier_url=args.product_supplier_url or [],
+            product_supplier_email=args.product_supplier_email,
             product_purl=args.product_purl,
             authors=args.author or [],
             describe_os=system.scans_host_os,
