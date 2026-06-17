@@ -57,7 +57,14 @@ write one and how plugin files are discovered.
 | `--plugin-config NAME:KEY=VALUE` | Configure a plugin. May be given multiple times. A comma-separated `VALUE` becomes a list, e.g. `--plugin-config patch-purl:packages=bash,coreutils`. |
 | `--plugin-config-file FILE` | JSON file mapping plugin name → config object. Merged *under* any inline `--plugin-config` values (which win on conflict). |
 
-## `dpkg` system options
+## System-specific options
+
+Each system adds its own options. To keep `--help` focused as more systems are added, **`--help`
+shows only the active system's options** — the default (`dpkg`) when `--system` is omitted, or the
+one named by `--system`. To see another system's options, pass it alongside `--help`, e.g.
+`whatever2sbom --system npm --help`. All systems' options are documented below.
+
+### `dpkg` system options
 
 Active when `--system dpkg` (the default). See [dpkg](systems/dpkg.md) for what each enrichment
 step does.
@@ -68,7 +75,7 @@ step does.
 | `--no-apt-cache` | Skip `apt-cache show` enrichment. Hashes and download metadata will be absent for most packages. |
 | `--no-licenses` | Skip reading `/usr/share/doc/<pkg>/copyright`. The `licenses` field will be empty on all components. |
 
-## `npm` system options
+### `npm` system options
 
 Active when `--system npm`. See [npm](systems/npm.md) for lockfile discovery, scope mapping, and
 dependency resolution details.
@@ -78,7 +85,7 @@ dependency resolution details.
 | `--lockfile PATH` | Path to `package-lock.json`, or a directory to search (default: current directory; tries `package-lock.json`, then npm's hidden `node_modules/.package-lock.json`). Only `lockfileVersion` 2/3 (npm ≥ 7) are supported. |
 | `--exclude-dev-dependencies` | Omit `devDependencies` (lockfile entries marked `dev`/`devOptional`) and any edges pointing at them. Without it, dev packages are emitted with CycloneDX scope `excluded`. |
 
-## `pip` system options
+### `pip` system options
 
 Active when `--system pip`. See [pip](systems/pip.md) for venv discovery and dependency
 resolution details.

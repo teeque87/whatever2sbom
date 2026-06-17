@@ -28,7 +28,24 @@ from whatever2sbom.validators.base import ValidationError
 from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
 
 
-def _build_parser() -> argparse.ArgumentParser:
+def _detect_system(argv: list[str] | None, systems: list[str], default: str) -> str:
+    """Pre-parse only --system so the full parser can be built with just the
+    selected system's options.
+
+    Lenient by design: a missing or unknown value falls back to `default` here
+    and is re-validated (with a proper error message) by the full parser, whose
+    --system carries the real `choices`.
+    """
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--system")
+    try:
+        known, _ = pre.parse_known_args(argv)
+    except SystemExit:
+        return default
+    return known.system if known.system in systems else default
+
+
+def _build_parser(selected_system: str) -> argparse.ArgumentParser:
     # All choices and defaults come from the registry — nothing is hardcoded here.
     systems         = registry.system_names()
     schemas         = registry.schema_names()
@@ -115,7 +132,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "CycloneDX component type for the product "
             "(firmware | application | container | device | operating-system | …)  "
-            "(default: depends on --system, e.g. operating-system for dpkg, application for pip)"
+            "(default: depends on --system, e.g. operating-system for dpkg, application for pip/npm)"
         ),
     )
     prod.add_argument(
@@ -188,11 +205,19 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    # system-specific option groups
-    # Each registered SystemPlugin declares its own arguments here, so the CLI
-    # stays clean when new systems are added.
-    for name in systems:
-        registry.get_system(name).add_arguments(p)
+    # system-specific options
+    # Only the *selected* system's options are registered, so --help stays
+    # focused as more ecosystems are added (and per-system flag names can't
+    # collide across systems). The other systems are pointed at in the epilog.
+    registry.get_system(selected_system).add_arguments(p)
+
+    others = [name for name in systems if name != selected_system]
+    if others:
+        p.epilog = (
+            f"showing options for --system {selected_system}. "
+            f"other systems: {', '.join(others)} "
+            f"(run `--system <name> --help` to see their options)."
+        )
 
     return p
 
@@ -226,7 +251,9 @@ class _LevelFormatter(logging.Formatter):
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = _build_parser()
+    systems = registry.system_names()
+    default_system = systems[0] if systems else "dpkg"
+    parser = _build_parser(_detect_system(argv, systems, default_system))
     args = parser.parse_args(argv)
     perf.enabled = args.performance_metrics
 
