@@ -222,19 +222,21 @@ class CycloneDXFormatter(Formatter):
         product_type: str = "operating-system",
         product_supplier: str | None = None,
         product_supplier_url: list[str] | None = None,
+        product_supplier_email: str | None = None,
         product_purl: str | None = None,
         authors: list[str] | None = None,
         describe_os: bool = True,
     ) -> None:
-        self._distro              = distro
-        self._product_name        = product_name
-        self._product_version     = product_version
-        self._product_type        = product_type
-        self._product_supplier    = product_supplier
+        self._distro               = distro
+        self._product_name         = product_name
+        self._product_version      = product_version
+        self._product_type         = product_type
+        self._product_supplier     = product_supplier
         self._product_supplier_url = product_supplier_url or []
-        self._product_purl        = product_purl
-        self._authors             = authors or []
-        self._describe_os         = describe_os
+        self._product_supplier_email = product_supplier_email
+        self._product_purl         = product_purl
+        self._authors              = authors or []
+        self._describe_os          = describe_os
 
     def format(self, packages: list[PackageRecord]) -> dict:
         os_info  = get_os_info()
@@ -395,6 +397,8 @@ class CycloneDXFormatter(Formatter):
         supplier: dict = {"name": self._product_supplier}
         if self._product_supplier_url:
             supplier["url"] = self._product_supplier_url
+        if self._product_supplier_email:
+            supplier["contact"] = [{"email": self._product_supplier_email}]
         metadata["supplier"] = supplier
 
         authors = self._build_authors()
@@ -425,6 +429,8 @@ class CycloneDXFormatter(Formatter):
                 supplier: dict = {"name": self._product_supplier}
                 if self._product_supplier_url:
                     supplier["url"] = self._product_supplier_url
+                if self._product_supplier_email:
+                    supplier["contact"] = [{"email": self._product_supplier_email}]
                 comp["supplier"] = supplier
             return comp
 
