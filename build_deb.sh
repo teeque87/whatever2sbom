@@ -30,8 +30,9 @@ PKGROOT="build/deb/${PKG}_${VERSION}_${ARCH}"
 WHEELDIR="$PKGROOT/opt/$PKG/wheels"
 
 DOCDIR="$PKGROOT/usr/share/doc/$PKG"
+MANDIR="$PKGROOT/usr/share/man/man1"
 
-mkdir -p "$PKGROOT/DEBIAN" "$WHEELDIR" "$PKGROOT/usr/bin" "$DOCDIR"
+mkdir -p "$PKGROOT/DEBIAN" "$WHEELDIR" "$PKGROOT/usr/bin" "$DOCDIR" "$MANDIR"
 
 cp "$WHEEL" "$WHEELDIR/"
 
@@ -51,6 +52,11 @@ install -m 755 debian/wrapper "$PKGROOT/usr/bin/$PKG"
 install -m 755 debian/postinst "$PKGROOT/DEBIAN/postinst"
 install -m 755 debian/postrm "$PKGROOT/DEBIAN/postrm"
 install -m 644 debian/copyright "$DOCDIR/copyright"
+
+# Section 1 manpage, version-substituted (like control.in) and gzip -9n
+# (no timestamp) into the standard man path.
+sed -e "s/__VERSION__/$VERSION/" debian/whatever2sbom.1 \
+    | gzip -9n > "$MANDIR/$PKG.1.gz"
 
 SIZE="$(du -sk "$PKGROOT" | cut -f1)"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__ARCH__/$ARCH/" -e "s/__SIZE__/$SIZE/" \

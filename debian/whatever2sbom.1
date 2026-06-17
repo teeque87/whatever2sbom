@@ -1,0 +1,328 @@
+.\" Manpage for whatever2sbom. __VERSION__ is substituted at package build time.
+.TH WHATEVER2SBOM 1 "2026-06-17" "whatever2sbom __VERSION__" "User Commands"
+.SH NAME
+whatever2sbom \- generate a validated CycloneDX SBOM from a system or project
+.SH SYNOPSIS
+.B whatever2sbom
+.RB [ options ]
+.B \-\-product\-supplier
+.I NAME
+.RB [ "system-specific options" ]
+.PP
+.B whatever2sbom
+.RB [ \-\-system
+.IR SYSTEM ]
+.B \-\-help
+.SH DESCRIPTION
+.B whatever2sbom
+generates a validated Software Bill of Materials (SBOM) from the real, installed
+state of an ecosystem rather than from a manifest of what was requested. It
+collects packages for the selected
+.BR \-\-system ,
+normalises each into a common record, optionally enriches them (hashes,
+licences, provenance), formats the result into the chosen
+.B \-\-schema
+document, and validates that document against the bundled schema before writing
+it.
+.PP
+All schema and reference data (the CycloneDX JSON schema and the SPDX licence
+list) are bundled with the program; no network access is performed at run time.
+.PP
+Schema validation is
+.B always
+performed and is fatal: if the generated document does not conform to the
+schema, every error is printed to standard error, nothing is written, and the
+program exits non-zero.
+.PP
+Installed from the Debian package,
+.B whatever2sbom
+runs from a self-contained virtual environment under
+.IR /opt/whatever2sbom ;
+the
+.I /usr/bin/whatever2sbom
+wrapper merely execs it, so it does not interfere with the host's system Python.
+.SH OPTIONS
+These global options apply to every system.
+.TP
+.B \-h, \-\-help
+Show a help message and exit. Only the selected system's options are listed
+(see
+.BR "SYSTEM-SPECIFIC OPTIONS" ).
+.TP
+.B \-\-system \fISYSTEM\fR
+Ecosystem to scan: one of
+.BR dpkg ", " npm ", or " pip
+(default:
+.BR dpkg ).
+Selects which collector and enrichers run and which system-specific options
+apply.
+.TP
+.B \-\-schema \fIFORMAT\fR
+Output document schema (default:
+.BR cyclonedx ).
+.TP
+.B \-\-spec\-version \fIVERSION\fR
+Specification version of the chosen schema (default:
+.BR 1.6 ).
+.TP
+.B \-o, \-\-output \fIFILE\fR
+Write the SBOM to
+.IR FILE .
+The default is \fIsbom_<timestamp>.<ext>\fR, where the extension is fixed by the
+schema
+.RI ( .cdx.json
+for CycloneDX).
+.TP
+.B \-v, \-\-verbose
+Enable debug-level logging to standard error.
+.TP
+.B \-\-performance\-metrics
+Print a per-stage timing breakdown (collect, enrich, format, validate, write) to
+standard error.
+.TP
+.B \-\-bsi\-tr\-compliant
+After writing the SBOM, additionally check it against the BSI TR-03183-2 v2.1.0
+data-field requirements (SPDX-only licences, SHA-512 hashes, creator contact
+information, the \fBbsi:component:*\fR properties). This check is advisory and
+non-fatal: findings are summarised on standard error and written in full to
+.IR <output>.bsi-report.txt .
+.SH PRODUCT METADATA OPTIONS
+These describe the product the SBOM is
+.IR about ,
+as opposed to the components found inside it. They populate
+.B metadata.component
+and
+.BR metadata.supplier .
+.TP
+.B \-\-product\-supplier \fINAME\fR
+Supplier / vendor name (NTIA Supplier Name).
+.B Required
+for every system.
+.TP
+.B \-\-product\-name \fINAME\fR
+Name of the product or firmware image. Optional for
+.B dpkg
+(which can fall back to describing the host operating system); required for
+.B npm
+and
+.BR pip ,
+which have no host-OS fallback for
+.BR metadata.component .
+.TP
+.B \-\-product\-version \fIVERSION\fR
+Version of the product.
+.TP
+.B \-\-product\-type \fITYPE\fR
+CycloneDX component type for the product
+.RB ( firmware ", " application ", " container ", " device ", " operating-system ", ...)."
+Default depends on
+.BR \-\-system :
+.B operating-system
+for
+.BR dpkg ,
+.B application
+for
+.B pip
+and
+.BR npm .
+.TP
+.B \-\-product\-supplier\-url \fIURL\fR
+Supplier URL. May be given multiple times.
+.TP
+.B \-\-product\-supplier\-email \fIEMAIL\fR
+Supplier contact e-mail address. Satisfies the BSI TR-03183-2 creator-contact
+requirement (sections 3.2.2 and 5.2.1).
+.TP
+.B \-\-product\-purl \fIPURL\fR
+Package-URL uniquely identifying the product (e.g.
+.IR pkg:generic/acme/fw@1.0 ).
+When set, the product is also added as the root node of the dependency tree.
+.TP
+.B \-\-author \fI'Name <email>'\fR
+SBOM author, in
+.RI ' "Name <email>" '
+form. May be given multiple times; populates
+.BR metadata.authors .
+.SH PLUGIN OPTIONS
+Optional post-processing scripts that run last \(em after formatting, just
+before schema validation \(em so their output is still validated.
+.TP
+.B \-\-plugin \fINAME\fR
+Enable a plugin by script name (without
+.IR .py ).
+May be given multiple times; plugins run in the order listed.
+.TP
+.B \-\-plugin\-config \fINAME:KEY=VALUE\fR
+Configure a plugin. May be given multiple times. A comma-separated
+.I VALUE
+becomes a list, e.g.
+.IR \-\-plugin\-config\ patch-purl:packages=bash,coreutils .
+.TP
+.B \-\-plugin\-config\-file \fIFILE\fR
+JSON file mapping plugin name to a config object. Merged
+.I under
+any inline
+.B \-\-plugin\-config
+values, which win on conflict.
+.SH SYSTEM-SPECIFIC OPTIONS
+Each system contributes its own options, listed below. Note that
+.B \-\-help
+displays only the options of the
+.I selected
+system (the default,
+.BR dpkg ,
+when
+.B \-\-system
+is omitted); run
+.B whatever2sbom \-\-system
+.I SYSTEM
+.B \-\-help
+to see another system's options.
+.SS dpkg system options
+Debian/Ubuntu packages via
+.BR dpkg-query (1),
+enriched from
+.BR apt-cache (8)
+and DEP-5 copyright files. This is the default system.
+.TP
+.B \-\-distro \fIID\fR
+Override the distribution identifier used in package PURLs (e.g.
+.BR ubuntu ).
+Auto-detected from
+.I /etc/os-release
+when omitted.
+.TP
+.B \-\-no\-apt\-cache
+Skip
+.BR apt-cache (8)
+hash and filename enrichment. Hashes and download metadata are then absent for
+most packages.
+.TP
+.B \-\-no\-licenses
+Skip licence extraction from
+.IR /usr/share/doc/ <pkg> /copyright .
+The
+.B licenses
+field is then empty on all components.
+.SS npm system options
+Node.js packages resolved from an npm
+.IR package-lock.json .
+Reads the lockfile only; no network access and no call to
+.BR npm (1).
+.TP
+.B \-\-lockfile \fIPATH\fR
+Path to
+.IR package-lock.json ,
+or a directory to search (default: current directory; tries
+.I package-lock.json
+then npm's hidden
+.IR node_modules/.package-lock.json ).
+Only
+.B lockfileVersion
+2 and 3 (npm >= 7) are supported.
+.TP
+.B \-\-exclude\-dev\-dependencies
+Omit devDependencies (lockfile entries marked
+.B dev
+or
+.BR devOptional )
+and any dependency edges pointing at them. Without this flag, such packages are
+emitted with CycloneDX scope
+.BR excluded .
+.SS pip system options
+Python packages installed in a virtualenv, read via
+.BR importlib.metadata .
+.TP
+.B \-\-venv\-dir \fIPATH\fR
+Path to the virtualenv to scan; it must contain
+.IR pyvenv.cfg .
+.B $VIRTUAL_ENV
+is deliberately not consulted, so the tool's own environment cannot shadow the
+target project's.
+.TP
+.B \-\-project\-dir \fIPATH\fR
+Project root under which to auto-detect a virtualenv (a directory containing
+.IR pyvenv.cfg )
+when
+.B \-\-venv\-dir
+is not given (default: current directory).
+.SH EXIT STATUS
+.TP
+.B 0
+The SBOM was written successfully. A non-empty
+.B \-\-bsi\-tr\-compliant
+report does
+.I not
+change this.
+.TP
+.B 1
+A configuration error, a plugin error, a schema-validation failure, or a runtime
+error during collection, enrichment, or formatting.
+.TP
+.B 2
+A command-line usage error (unknown or invalid option, or a missing required
+option such as
+.BR \-\-product\-supplier ).
+.SH FILES
+.TP
+.I /opt/whatever2sbom/venv
+Self-contained virtual environment the program runs from, created on package
+installation.
+.TP
+.I /opt/whatever2sbom/wheels
+Bundled dependency wheels used to (re)install the program fully offline.
+.TP
+.I /opt/whatever2sbom/plugins
+System-wide drop-in directory searched for
+.B \-\-plugin
+scripts.
+.TP
+.I /etc/os-release
+Read by
+.B \-\-system dpkg
+for the distribution identifier and codename used in PURLs and the host-OS
+fallback component.
+.TP
+.I sbom_<timestamp>.<ext>
+Default output file when
+.B \-o
+is not given.
+.TP
+.I <output>.bsi-report.txt
+Full BSI TR-03183-2 findings, written when
+.B \-\-bsi\-tr\-compliant
+reports any.
+.SH EXAMPLES
+Scan the local Debian/Ubuntu system (default):
+.RS 4
+.EX
+whatever2sbom \-\-product\-supplier "Acme GmbH"
+.EE
+.RE
+.PP
+Scan a Node.js project and name the product:
+.RS 4
+.EX
+whatever2sbom \-\-system npm \-\-lockfile ./app \\
+              \-\-product\-name app \-\-product\-supplier "Acme GmbH"
+.EE
+.RE
+.PP
+Scan a Python virtualenv and run the BSI compliance check:
+.RS 4
+.EX
+whatever2sbom \-\-system pip \-\-venv\-dir ./.venv \\
+              \-\-product\-name app \-\-product\-supplier "Acme GmbH" \-\-bsi\-tr\-compliant
+.EE
+.RE
+.SH SEE ALSO
+.BR dpkg-query (1),
+.BR apt-cache (8).
+.PP
+CycloneDX specification: https://cyclonedx.org/
+.br
+BSI TR-03183-2: https://www.bsi.bund.de/
+.br
+Full documentation: https://teeque87.github.io/whatever2sbom/
+.SH AUTHOR
+Michael Hansonis <whatever2sbom@teeque.dev>.
