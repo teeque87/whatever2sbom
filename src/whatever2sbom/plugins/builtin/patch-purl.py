@@ -14,12 +14,15 @@ Enable with:  --plugin patch-purl
 
 Config keys (both required):
     namespace   the namespace to set.
-    packages    list of component names to patch.
+    packages    list of component names to patch. Matching is loose: a name
+                matches if it equals an entry exactly, or begins with it
+                followed by "-" -- so "linux-hwe" also patches the versioned
+                binary packages "linux-hwe-4828.2.1.1", "linux-hwe-tools", etc.
 
 Example:
     --plugin patch-purl \
         --plugin-config patch-purl:namespace=acme \
-        --plugin-config patch-purl:packages=bash,coreutils
+        --plugin-config patch-purl:packages=bash,linux-hwe
 """
 
 import logging
@@ -43,6 +46,13 @@ def _replace_namespace(purl: str, namespace: str) -> str:
     return "/".join(parts) + suffix
 
 
+def _matches(name: str, targets: set[str]) -> bool:
+    """A name matches if it equals a target or begins with `target + "-"`,
+    so a base name like "linux-hwe" also catches its versioned binary
+    packages ("linux-hwe-4828.2.1.1") without matching unrelated names."""
+    return any(name == t or name.startswith(t + "-") for t in targets)
+
+
 def apply(bom: dict, config: dict) -> dict:
     namespace = config.get("namespace")
     packages = config.get("packages")
@@ -56,7 +66,8 @@ def apply(bom: dict, config: dict) -> dict:
     targets = {packages} if isinstance(packages, str) else set(packages)
     patched = 0
     for component in bom.get("components", []):
-        if component.get("name") in targets and component.get("purl"):
+        name = component.get("name")
+        if name and component.get("purl") and _matches(name, targets):
             new_purl = _replace_namespace(component["purl"], namespace)
             if new_purl != component["purl"]:
                 component["purl"] = new_purl

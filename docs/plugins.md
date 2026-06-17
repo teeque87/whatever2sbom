@@ -135,7 +135,7 @@ left unchanged.
 | Config key | Required | Meaning |
 |---|---|---|
 | `namespace` | yes | The namespace to set. |
-| `packages` | yes | List of component names to patch. There is no "patch everything" mode — naming the packages is deliberate. |
+| `packages` | yes | List of component names to patch. There is no "patch everything" mode — naming the packages is deliberate. Matching is loose: a name matches if it equals an entry exactly, or begins with it followed by `-`, so `linux-hwe` also patches the versioned binary packages `linux-hwe-4828.2.1.1`, `linux-hwe-tools`, etc. |
 
 ```
 whatever2sbom --product-supplier acme \

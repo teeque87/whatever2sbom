@@ -144,6 +144,23 @@ def test_patch_purl_only_touches_named_packages() -> None:
     assert out["components"][1]["purl"] == "pkg:deb/debian/coreutils@9.1"  # untouched
 
 
+def test_patch_purl_loose_prefix_matching() -> None:
+    # "linux-hwe" should match the base package and its versioned binaries,
+    # but not an unrelated name that merely shares the "linux" stem.
+    plugin = load_plugin("patch-purl", {"namespace": "acme", "packages": ["linux-hwe"]})
+    bom = {
+        "components": [
+            {"name": "linux-hwe", "purl": "pkg:deb/debian/linux-hwe@6.8"},
+            {"name": "linux-hwe-4828.2.1.1", "purl": "pkg:deb/debian/linux-hwe-4828.2.1.1@6.8"},
+            {"name": "linux-firmware", "purl": "pkg:deb/debian/linux-firmware@1.0"},
+        ]
+    }
+    out = plugin.run(bom)
+    assert out["components"][0]["purl"] == "pkg:deb/acme/linux-hwe@6.8"
+    assert out["components"][1]["purl"] == "pkg:deb/acme/linux-hwe-4828.2.1.1@6.8"
+    assert out["components"][2]["purl"] == "pkg:deb/debian/linux-firmware@1.0"  # untouched
+
+
 @pytest.mark.parametrize("config", [{}, {"namespace": "acme"}, {"packages": ["bash"]}])
 def test_patch_purl_requires_namespace_and_packages(config) -> None:
     plugin = load_plugin("patch-purl", config)
