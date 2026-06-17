@@ -22,6 +22,7 @@ from pathlib import Path
 import whatever2sbom
 from whatever2sbom import registry
 from whatever2sbom.pipeline import SbomPipeline
+from whatever2sbom.plugins import PluginError, load_plugin, parse_plugin_configs
 from whatever2sbom.util import perf
 from whatever2sbom.validators.base import ValidationError
 from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
@@ -151,6 +152,42 @@ def _build_parser() -> argparse.ArgumentParser:
         help="SBOM author in 'Name <email>' format (may be given multiple times)",
     )
 
+    # plugins (optional post-processing, run last before validation)
+    plug = p.add_argument_group(
+        "plugins",
+        "Optional post-processing plugins. Each runs last — after formatting, "
+        "just before schema validation — so its output is still validated.",
+    )
+    plug.add_argument(
+        "--plugin",
+        action="append",
+        dest="plugins",
+        metavar="NAME",
+        help=(
+            "Enable a plugin by script name (without .py). May be given multiple "
+            "times; plugins run in the order listed. See the Plugins guide."
+        ),
+    )
+    plug.add_argument(
+        "--plugin-config",
+        action="append",
+        dest="plugin_config",
+        metavar="NAME:KEY=VALUE",
+        help=(
+            "Configure a plugin (repeatable). A comma-separated VALUE becomes a "
+            "list, e.g. --plugin-config patch-purl:packages=bash,coreutils"
+        ),
+    )
+    plug.add_argument(
+        "--plugin-config-file",
+        dest="plugin_config_file",
+        metavar="FILE",
+        help=(
+            "JSON file mapping plugin name -> config object. Merged under any "
+            "inline --plugin-config values (which win on conflict)."
+        ),
+    )
+
     # system-specific option groups
     # Each registered SystemPlugin declares its own arguments here, so the CLI
     # stays clean when new systems are added.
@@ -235,6 +272,17 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Configuration error: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    # resolve optional post-processing plugins
+    try:
+        plugin_configs = parse_plugin_configs(args.plugin_config, args.plugin_config_file)
+        plugins = [
+            load_plugin(name, plugin_configs.get(name, {}))
+            for name in (args.plugins or [])
+        ]
+    except PluginError as exc:
+        print(f"Plugin error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
     collector = system.make_collector(args)
     enrichers = system.make_enrichers(args)
 
@@ -244,6 +292,7 @@ def main(argv: list[str] | None = None) -> None:
         enrichers=enrichers,
         formatter=formatter,
         validators=[validator],
+        plugins=plugins,
     )
 
     try:

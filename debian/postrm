@@ -7,4 +7,11 @@ case "$1" in
         ;;
 esac
 
+# Only drop user-supplied plugins on a full purge.
+case "$1" in
+    purge)
+        rm -rf /opt/whatever2sbom/plugins
+        ;;
+esac
+
 exit 0

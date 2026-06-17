@@ -44,6 +44,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "whatever2sbom" = ["schema/**/*.json"]
+# Built-in plugin scripts are shipped as data (builtin/ is intentionally not a
+# package) and discovered by name at runtime, not imported as submodules.
+"whatever2sbom.plugins" = ["builtin/*.py"]
 
 [tool.setuptools_scm]
 # Tags are "v1.2.3"; the leading "v" is stripped to produce the package
