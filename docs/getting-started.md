@@ -1,9 +1,9 @@
 # Getting started
 
-This page covers the default `--system dpkg` (Debian/Ubuntu). For scanning a Python virtualenv
-instead, see [the `pip` system page](systems/pip.md) — everything below still applies to it
-conceptually (output format, validation, BSI compliance), just with `--system pip` and that
-system's own options.
+This page covers the default `--system dpkg` (Debian/Ubuntu). For scanning a Python virtualenv or a
+Node.js project instead, see the [`pip`](systems/pip.md) and [`npm`](systems/npm.md) system pages —
+everything below still applies to them conceptually (output format, validation, BSI compliance),
+just with `--system pip`/`--system npm` and that system's own options.
 
 ## Requirements
 

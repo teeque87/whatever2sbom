@@ -15,8 +15,8 @@ whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
 
 | Option | Default | Description |
 |---|---|---|
-| `--system SYSTEM` | `dpkg` | What to scan: `dpkg` or `pip`. See [Systems](systems/index.md). |
-| `--schema FORMAT` | `cyclonedx` | Output schema format. See [Schemas](systems/index.md#schemas). |
+| `--system SYSTEM` | `dpkg` | What to scan: `dpkg`, `npm`, or `pip`. See [Systems](systems/index.md). |
+| `--schema FORMAT` | `cyclonedx` | Output schema format. See [Schemas](schemas.md). |
 | `--spec-version VERSION` | `1.6` | Spec version of the chosen schema. |
 | `-o`, `--output FILE` | `sbom_<timestamp>.<ext>` | Output file path. Extension is chosen by the formatter (`.cdx.json` for CycloneDX). |
 | `-v`, `--verbose` | off | Enable debug-level logging to stderr. |
@@ -31,14 +31,14 @@ recommended for BSI TR-03183 compliance. When `--product-purl` is set, the produ
 as the root node of the dependency tree.
 
 `--product-name` is additionally **required for systems that don't scan the host OS** (currently
-`pip`) — without it, there's nothing for `metadata.component` to describe, since (unlike `dpkg`)
-the scanned thing isn't the host OS and can't fall back to `/etc/os-release`.
+`npm` and `pip`) — without it, there's nothing for `metadata.component` to describe, since (unlike
+`dpkg`) the scanned thing isn't the host OS and can't fall back to `/etc/os-release`.
 
 | Option | Description |
 |---|---|
-| `--product-name NAME` | Name of the product or firmware image being described. Optional for `dpkg` (falls back to describing the host OS); **required** for `pip`. |
+| `--product-name NAME` | Name of the product or firmware image being described. Optional for `dpkg` (falls back to describing the host OS); **required** for `npm` and `pip`. |
 | `--product-version VERSION` | Version of the product. |
-| `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, `operating-system`, …) for `metadata.component` *when `--product-name` is set*. Default depends on `--system`: `operating-system` for `dpkg`, `application` for `pip`. (For `dpkg` without `--product-name`, `metadata.component` describes the host OS, type `operating-system`, regardless of this option.) |
+| `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, `operating-system`, …) for `metadata.component` *when `--product-name` is set*. Default depends on `--system`: `operating-system` for `dpkg`, `application` for `npm`/`pip`. (For `dpkg` without `--product-name`, `metadata.component` describes the host OS, type `operating-system`, regardless of this option.) |
 | `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). |
 | `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
 | `--product-supplier-email EMAIL` | Supplier contact e-mail address. Satisfies the BSI TR-03183-2 creator-contact requirement (§3.2.2 / §5.2.1). |
@@ -67,6 +67,16 @@ step does.
 | `--distro ID` | Override the distro identifier used in package PURLs (e.g. `ubuntu`, `debian`). Auto-detected from `/etc/os-release` if omitted. |
 | `--no-apt-cache` | Skip `apt-cache show` enrichment. Hashes and download metadata will be absent for most packages. |
 | `--no-licenses` | Skip reading `/usr/share/doc/<pkg>/copyright`. The `licenses` field will be empty on all components. |
+
+## `npm` system options
+
+Active when `--system npm`. See [npm](systems/npm.md) for lockfile discovery, scope mapping, and
+dependency resolution details.
+
+| Option | Description |
+|---|---|
+| `--lockfile PATH` | Path to `package-lock.json`, or a directory to search (default: current directory; tries `package-lock.json`, then npm's hidden `node_modules/.package-lock.json`). Only `lockfileVersion` 2/3 (npm ≥ 7) are supported. |
+| `--exclude-dev-dependencies` | Omit `devDependencies` (lockfile entries marked `dev`/`devOptional`) and any edges pointing at them. Without it, dev packages are emitted with CycloneDX scope `excluded`. |
 
 ## `pip` system options
 

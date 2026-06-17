@@ -32,12 +32,15 @@ nav:
   - Usage:
       - Getting started: getting-started.md
       - CLI reference: cli-reference.md
-      - Systems and schemas:
+      - Systems:
           - Overview: systems/index.md
           - dpkg: systems/dpkg.md
+          - npm: systems/npm.md
           - pip: systems/pip.md
-      - Output format: output.md
-      - Validation: validation.md
+      - Output:
+          - Schemas: schemas.md
+          - Format: output.md
+          - Validation: validation.md
       - Performance: performance.md
   - Development:
       - Architecture: architecture.md

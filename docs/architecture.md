@@ -46,7 +46,7 @@ class SbomPipeline:
 [`registry.py`](https://github.com/teeque87/whatever2sbom/blob/main/src/whatever2sbom/registry.py)
 is the single source of truth for what's available:
 
-- **Systems** (`register_system`) — one per ecosystem, keyed by name (`"dpkg"`, `"pip"`). Selected
+- **Systems** (`register_system`) — one per ecosystem, keyed by name (`"dpkg"`, `"npm"`, `"pip"`). Selected
   via `--system`.
 - **Formatters** (`register_formatter`) — keyed by `(schema, spec_version)`, e.g.
   `("cyclonedx", "1.6")`. Selected via `--schema`/`--spec-version`.
@@ -107,8 +107,8 @@ else (e.g. `("dpkg:section", "libs")`) — formatters emit these as CycloneDX `p
 
 | Concept | Base class | Built-in implementation |
 |---|---|---|
-| System plugin | `systems/base.py::SystemPlugin` | `systems/dpkg.py::DpkgSystem`, `systems/pip.py::PipSystem` |
-| Collector | `collectors/base.py::Collector` | `collectors/dpkg.py::DpkgCollector`, `collectors/pip.py::PipCollector` |
+| System plugin | `systems/base.py::SystemPlugin` | `systems/dpkg.py::DpkgSystem`, `systems/npm.py::NpmSystem`, `systems/pip.py::PipSystem` |
+| Collector | `collectors/base.py::Collector` | `collectors/dpkg.py::DpkgCollector`, `collectors/npm.py::NpmCollector`, `collectors/pip.py::PipCollector` |
 | Enricher | `enrichers/base.py::Enricher` | `enrichers/apt_cache.py`, `enrichers/copyright.py` |
 | Formatter | `formatters/base.py::Formatter` | `formatters/cyclonedx16.py::CycloneDXFormatter` |
 | Validator | `validators/base.py::Validator` | `validators/jsonschema_validator.py::CycloneDXSchemaValidator`, `validators/bsi_tr03183.py::BsiTr03183Validator` |

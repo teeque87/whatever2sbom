@@ -7,9 +7,10 @@ description: Generate a validated, BSI TR-03183-2-aware CycloneDX SBOM for whate
 
 **whatever2sbom** generates a validated [CycloneDX](https://cyclonedx.org/) Software Bill of
 Materials (SBOM) from a system or project. It scans an installed package database — Debian or
-Ubuntu via `dpkg`/`apt`, or a Python virtualenv via `pip` — enriches each component with hashes,
-licenses and provenance metadata, and writes out a CycloneDX document that has already been
-checked against the official JSON schema — so what you get is always structurally valid.
+Ubuntu via `dpkg`/`apt`, a Python virtualenv via `pip`, or a Node.js project via `npm`'s
+`package-lock.json` — enriches each component with hashes, licenses and provenance metadata, and
+writes out a CycloneDX document that has already been checked against the official JSON schema — so
+what you get is always structurally valid.
 
 It can additionally check the result against the
 [BSI TR-03183-2](https://www.bsi.bund.de/EN/Themen/Unternehmen-und-Organisationen/Standards-und-Zertifizierung/Anforderungen-an-Hersteller/Hersteller_node.html)
@@ -36,6 +37,7 @@ compliance.
 - Python 3.11+
 - Linux with `dpkg` (Debian / Ubuntu) for `--system dpkg`
 - A virtualenv for `--system pip`
+- A `package-lock.json` (npm ≥ 7) for `--system npm`
 
 ## Installation
 
@@ -58,7 +60,8 @@ This writes `sbom_<timestamp>.cdx.json` in the current directory and prints a sh
 
 - [Getting started](getting-started.md) — installation and a first scan
 - [CLI reference](cli-reference.md) — all flags and product metadata options
-- [Systems and schemas](systems/index.md) — what whatever2sbom can scan and emit
+- [Systems](systems/index.md) — what whatever2sbom can scan (`dpkg`, `npm`, `pip`)
+- [Schemas](schemas.md) — the output formats it can emit (CycloneDX)
 - [Output format](output.md) — what ends up in the generated SBOM
 - [Validation](validation.md) — schema validation and BSI TR-03183-2 compliance
 - [Architecture](architecture.md) — how a scan flows through the pipeline

@@ -13,8 +13,9 @@ compliance.
 
 ## What it does
 
-- **Scans real package state.** Debian/Ubuntu systems via `dpkg`/`apt`, or a Python virtualenv via
-  `pip` — reading what is actually installed, not a manifest of what was requested.
+- **Scans real package state.** Debian/Ubuntu systems via `dpkg`/`apt`, a Python virtualenv via
+  `pip`, or a Node.js project via `npm`'s `package-lock.json` — reading what is actually installed
+  or pinned, not a manifest of what was requested.
 - **Enriches every component.** Hashes (SHA-256/512/1, MD5), SPDX-classified licenses, copyright
   notices, supplier and author contacts, and a resolved dependency graph — not just a flat list of
   names and versions.
@@ -31,10 +32,11 @@ compliance.
 
 ## Status and roadmap
 
-whatever2sbom is usable today for `dpkg`- and `pip`-based systems emitting CycloneDX 1.6. On the
-near-term roadmap:
+whatever2sbom is usable today for `dpkg`-, `pip`-, and `npm`-based systems emitting CycloneDX 1.6.
+On the near-term roadmap:
 
-- **npm support** — scanning installed Node.js dependencies as a first-class system.
+- **npm enrichment** — layering per-package metadata (descriptions, homepages, authors) from
+  `node_modules` on top of the lockfile-only baseline.
 - **CycloneDX 1.7** — emitting and validating against the newer spec version alongside 1.6.
 
 ## Documentation

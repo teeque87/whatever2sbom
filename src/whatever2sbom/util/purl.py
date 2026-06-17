@@ -31,6 +31,20 @@ def pypi(name: str, version: str) -> str:
     return f"pkg:pypi/{name}@{quote_version(version)}"
 
 
+def npm(name: str, version: str) -> str:
+    """Build an npm package-url: pkg:npm/<name>@<version>.
+
+    Scoped packages ("@scope/pkg") put the scope in the PURL namespace, with
+    its leading "@" percent-encoded per the PURL spec
+    (e.g. "@angular/core" -> "pkg:npm/%40angular/core@12.3.1"). npm package
+    names are lowercase by definition, so no normalization is needed.
+    """
+    if name.startswith("@") and "/" in name:
+        scope, _, pkg = name.partition("/")
+        return f"pkg:npm/{_urlquote(scope, safe='')}/{pkg}@{quote_version(version)}"
+    return f"pkg:npm/{name}@{quote_version(version)}"
+
+
 def deb(distro: str, name: str, version: str, arch: str, codename: str | None) -> str:
     """Build a Debian/Ubuntu package-url:
 
