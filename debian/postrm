@@ -4,13 +4,20 @@ set -e
 case "$1" in
     remove|purge)
         rm -rf /opt/whatever2sbom/venv
-        ;;
-esac
 
-# Only drop user-supplied plugins on a full purge.
-case "$1" in
-    purge)
-        rm -rf /opt/whatever2sbom/plugins
+        # Remove the plugins drop-in directory: forcibly on a full purge,
+        # otherwise only when it's empty. User-supplied plugins survive a plain
+        # remove (cleaned on purge), but an empty drop-in dir is just litter.
+        if [ "$1" = purge ]; then
+            rm -rf /opt/whatever2sbom/plugins
+        else
+            rmdir /opt/whatever2sbom/plugins 2>/dev/null || true
+        fi
+
+        # venv/ and plugins/ are created by postinst (not shipped), so dpkg
+        # never reaps the top-level dir. Drop it once empty; left in place when
+        # user plugins still remain after a plain remove.
+        rmdir --ignore-fail-on-non-empty /opt/whatever2sbom 2>/dev/null || true
         ;;
 esac
 
