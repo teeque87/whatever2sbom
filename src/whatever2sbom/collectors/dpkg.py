@@ -360,6 +360,9 @@ def _fill_output_mapping(pkg: PackageRecord) -> None:
     """
     pkg.component_type = _map_component_type(pkg)
     pkg.scope = _map_scope(pkg)
+    # Group binaries under their source package (only when it differs from the
+    # binary name — a package that is its own source gets no redundant group).
+    pkg.group = pkg.source_name if pkg.source_name and pkg.source_name != pkg.name else None
     pkg.bsi_executable = "non-executable"
     pkg.bsi_archive = "archive"
     pkg.bsi_structured = "structured"

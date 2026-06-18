@@ -329,11 +329,15 @@ class CycloneDXFormatter(Formatter):
         component: dict = {
             "type":    pkg.component_type,
             "bom-ref": pkg.bom_ref or "",
-            "name":    pkg.name,
-            "version": pkg.version,
-            "purl":    pkg.purl or "",
-            "scope":   pkg.scope,
         }
+        # group (e.g. the deb source package) precedes name, per CycloneDX's
+        # group/name/version ordering; omitted when the collector left it unset.
+        if pkg.group:
+            component["group"] = pkg.group
+        component["name"]    = pkg.name
+        component["version"] = pkg.version
+        component["purl"]    = pkg.purl or ""
+        component["scope"]   = pkg.scope
 
         if pkg.description:
             component["description"] = pkg.description

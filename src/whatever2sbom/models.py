@@ -77,6 +77,13 @@ class PackageRecord:
     # formatters stay generic across ecosystems (deb, pip, npm, ...).
     component_type: str = "library"   # CycloneDX component "type"
     scope: str = "required"           # CycloneDX component "scope"
+    # CycloneDX component "group": the grouping identifier (CycloneDX cites "the
+    # source package or domain name"; npm puts the @scope here). For dpkg this is
+    # the source package name when it differs from the binary name, so binaries
+    # built from one source share a group (e.g. group "python3.12" for
+    # libpython3.12-stdlib) and tools can filter a whole source family. None
+    # omits the field (e.g. a package that is its own source).
+    group: Optional[str] = None
     dependency_refs: list[str] = field(default_factory=list)  # resolved bom-refs of direct deps
 
     # Component "authors" per CycloneDX 1.6: the person(s) who wrote the

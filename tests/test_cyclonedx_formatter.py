@@ -65,6 +65,21 @@ def test_product_name_match_is_normalized() -> None:
     assert root["dependsOn"] == []
 
 
+def test_group_emitted_before_name_when_set() -> None:
+    pkg = _pkg("libpython3.12-stdlib", "3.12.3-1")
+    pkg.group = "python3.12"
+    comp = _formatter().format([pkg])["components"][0]
+
+    assert comp["group"] == "python3.12"
+    keys = list(comp.keys())
+    assert keys.index("group") < keys.index("name")  # group precedes name
+
+
+def test_group_omitted_when_unset() -> None:
+    comp = _formatter().format([_pkg("bash", "5.3")])["components"][0]
+    assert "group" not in comp
+
+
 def test_no_product_name_and_describe_os_false_omits_metadata_component() -> None:
     """e.g. --system pip without --product-name: the scanned thing isn't the
     host OS, so metadata.component must not be a misleading

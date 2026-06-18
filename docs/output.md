@@ -17,6 +17,11 @@ each component when scanning `dpkg`; other systems may populate a different subs
     - **built from a different source**:
       `pkg:deb/<distro>/<binary_name>@<binary_version>?arch=<arch>&upstream=<source_name>&distro=<codename>`
 - **`name`, `version`** — binary package identity
+- **`group`** — the source package name, set only when it differs from the binary name (CycloneDX
+  cites the source package as a use of `group`). Binaries built from one source then share a
+  `group` — e.g. `libpython3.12-stdlib`, `python3.12-minimal`, … all get `group: python3.12` — so a
+  tool like Dependency-Track can filter the whole source family at once. Omitted for a package that
+  is its own source (no redundant `group == name`).
 - **`type`** — derived from the dpkg section (`library`, `application`, `firmware`,
   `operating-system`)
 - **`scope`** — `required` for essential/important packages, `optional` otherwise

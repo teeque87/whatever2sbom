@@ -3,7 +3,12 @@
 import pytest
 
 from whatever2sbom.util.purl import deb, pypi, quote_version
-from whatever2sbom.collectors.dpkg import _fill_bom_ref, _fill_purl, _resolve_distro
+from whatever2sbom.collectors.dpkg import (
+    _fill_bom_ref,
+    _fill_output_mapping,
+    _fill_purl,
+    _resolve_distro,
+)
 from whatever2sbom.models import PackageRecord
 
 
@@ -130,3 +135,19 @@ def test_fill_bom_ref(pkg, want_bom_ref):
 def test_fill_purl(pkg, want_purl):
     _fill_purl(pkg, "ubuntu", "resolute")
     assert pkg.purl == want_purl, f"purl: got {pkg.purl!r}, want {want_purl!r}"
+
+
+# _fill_output_mapping — CycloneDX "group" (source package)
+
+@pytest.mark.parametrize("pkg,want_group", [
+    # distinct source -> grouped under it
+    (PackageRecord(name="libpython3.12-stdlib", version="3.12.3-1", source_name="python3.12"),
+     "python3.12"),
+    # own source (source == name) -> no redundant group
+    (PackageRecord(name="bash", version="5.3", source_name="bash"), None),
+    # no source name at all -> no group
+    (PackageRecord(name="bash", version="5.3"), None),
+])
+def test_fill_output_mapping_group(pkg, want_group):
+    _fill_output_mapping(pkg)
+    assert pkg.group == want_group
