@@ -250,20 +250,66 @@ def _resolve_distro(override: str | None, os_info: dict[str, str]) -> tuple[str,
     return distro, codename
 
 
-def _fill_purls(pkg: PackageRecord, distro: str, codename: str | None) -> None:
-    """Fill the matchable PURL and the unique bom_ref for one package.
+def _fill_bom_ref(pkg: PackageRecord, distro: str, codename: str | None) -> None:
+    """Fill the unique bom_ref (dep-graph node id) for one package.
 
-    - bom_ref: the per-binary coordinate (name + arch) — unique dep-graph node id.
-    - purl:    the source coordinate with arch=source — what vuln scanners match.
-
-    source_name/source_version fall back to the binary name/version for packages
-    that have no distinct source.
+    bom_ref is the per-binary coordinate (name + arch); it is always unique per
+    installed binary and never carries the source identity, so the dependency
+    graph stays intact regardless of how PURLs are assigned.
     """
     pkg.bom_ref = _purl.deb(distro, pkg.name, pkg.version, pkg.architecture or "", codename)
 
-    src_name = pkg.source_name or pkg.name
-    src_ver = pkg.source_version or pkg.version
-    pkg.purl = _purl.deb(distro, src_name, src_ver, "source", codename)
+
+def _source_name(pkg: PackageRecord) -> str:
+    """Resolved source package name, falling back to the binary name."""
+    return pkg.source_name or pkg.name
+
+
+def _select_carrier(members: list[PackageRecord], src_name: str) -> PackageRecord:
+    """Pick the one binary in a source group that carries the source-coordinate PURL.
+
+    Prefer the installed binary named exactly like the source package (e.g.
+    `python3.12` for source `python3.12`); otherwise fall back to the
+    alphabetically-first member so the choice is deterministic across runs.
+    """
+    exact = [p for p in members if p.name == src_name]
+    pool = exact or members
+    return min(pool, key=lambda p: (p.name, p.architecture or ""))
+
+
+def _assign_purls(packages: list[PackageRecord], distro: str, codename: str | None) -> None:
+    """Assign each package's matchable PURL, de-duplicating the source coordinate.
+
+    Debian binary packages built from a single source (e.g. python3.12,
+    python3.12-minimal, libpython3.12-stdlib, …) share one *source-level*
+    vulnerability identity. Emitting the source coordinate (arch=source) on
+    every binary makes a PURL-keyed scanner (Dependency-Track/OSV) report the
+    same CVE once per binary — the duplication that makes the result unusable.
+
+    To keep detection working but stop the duplication, exactly one binary per
+    source group (the carrier, see _select_carrier) keeps the source coordinate
+    that OSV/Ubuntu advisories are keyed on; every other member carries its own
+    unique binary coordinate plus an `upstream=<source>` qualifier so it stays
+    distinct, traceable to its source, and is not matched a second time.
+
+    Packages that are their own source (no distinct source package) form a group
+    of one and keep their source coordinate, exactly as before.
+    """
+    groups: dict[str, list[PackageRecord]] = {}
+    for pkg in packages:
+        groups.setdefault(_source_name(pkg), []).append(pkg)
+
+    for src_name, members in groups.items():
+        carrier = _select_carrier(members, src_name)
+        src_ver = carrier.source_version or carrier.version
+        for pkg in members:
+            if pkg is carrier:
+                pkg.purl = _purl.deb(distro, src_name, src_ver, "source", codename)
+            else:
+                pkg.purl = _purl.deb(
+                    distro, pkg.name, pkg.version, pkg.architecture or "",
+                    codename, upstream=src_name,
+                )
 
 
 def _fill_output_mapping(pkg: PackageRecord) -> None:
@@ -322,8 +368,9 @@ class DpkgCollector(Collector):
         # emits these fields verbatim.
         distro, codename = _resolve_distro(self._distro, get_os_info())
         for pkg in packages:
-            _fill_purls(pkg, distro, codename)
+            _fill_bom_ref(pkg, distro, codename)
             _fill_output_mapping(pkg)
+        _assign_purls(packages, distro, codename)
         _resolve_dependencies(packages)
 
         logger.info("  <- %d packages found", len(packages))

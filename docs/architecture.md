@@ -91,8 +91,9 @@ Two fields are worth calling out because they're computed by the **collector**, 
 formatter:
 
 - **`purl`** — the matchable coordinate a vulnerability scanner keys on (for `dpkg`: the source
-  package + `arch=source`; for `pip`: `pkg:pypi/<name>@<version>` with the name PEP 503
-  normalized).
+  package + `arch=source` on one carrier per source group, and the binary coordinate +
+  `upstream=<source>` on the rest — see [Output format](output.md#source-coordinate-de-duplication);
+  for `pip`: `pkg:pypi/<name>@<version>` with the name PEP 503 normalized).
 - **`bom_ref`** — a unique dependency-graph node id (for `dpkg`: the per-binary coordinate
   including `arch`; for `pip`: the same PURL, since each installed distribution is unique).
 

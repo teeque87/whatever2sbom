@@ -184,6 +184,16 @@ Debian/Ubuntu packages via
 enriched from
 .BR apt-cache (8)
 and DEP-5 copyright files. This is the default system.
+.PP
+Binary packages built from one source package (e.g.
+.BR python3.12 ", " python3.12-minimal ", " libpython3.12-stdlib )
+share a single source-level vulnerability identity. To keep PURL-keyed scanners
+(Dependency-Track, OSV) from reporting the same CVE once per binary, exactly one
+binary per source group carries the matchable source coordinate
+.RB ( arch=source );
+the rest carry their own binary coordinate plus an
+.B upstream=\fIsource\fR
+qualifier.
 .TP
 .B \-\-distro \fIID\fR
 Override the distribution identifier used in package PURLs (e.g.
