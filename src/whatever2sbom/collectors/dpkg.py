@@ -250,20 +250,48 @@ def _resolve_distro(override: str | None, os_info: dict[str, str]) -> tuple[str,
     return distro, codename
 
 
-def _fill_purls(pkg: PackageRecord, distro: str, codename: str | None) -> None:
-    """Fill the matchable PURL and the unique bom_ref for one package.
+def _fill_bom_ref(pkg: PackageRecord, distro: str, codename: str | None) -> None:
+    """Fill the unique bom_ref (dep-graph node id) for one package.
 
-    - bom_ref: the per-binary coordinate (name + arch) — unique dep-graph node id.
-    - purl:    the source coordinate with arch=source — what vuln scanners match.
-
-    source_name/source_version fall back to the binary name/version for packages
-    that have no distinct source.
+    bom_ref is the per-binary coordinate (name + arch); it is always unique per
+    installed binary and carries the binary architecture, so the dependency
+    graph stays intact regardless of how the matchable PURL is assigned.
     """
     pkg.bom_ref = _purl.deb(distro, pkg.name, pkg.version, pkg.architecture or "", codename)
 
+
+def _fill_purl(pkg: PackageRecord, distro: str, codename: str | None) -> None:
+    """Fill the matchable PURL for one package.
+
+    OSV/Ubuntu security advisories are keyed on the *source* package name with
+    arch=source (see docs/output.md), so the rule is per-package:
+
+    - A package that is its own source (source name == binary name, or no
+      distinct source) keeps the source coordinate (arch=source) — OSV matches
+      its CVEs.
+    - A binary built from a *different* source uses its own binary coordinate
+      plus an informational `upstream=<source>` qualifier. OSV does not match on
+      binary names or the upstream qualifier, so this binary never re-matches
+      the shared source advisory — which is what stops one source-level CVE from
+      being reported once per binary (python3.12, python3.12-minimal,
+      libpython3.12-stdlib, … no longer all duplicate the same finding).
+
+    Best-effort consequence: when a source package ships no binary of the same
+    name (e.g. nvidia-graphics-drivers-590 → libnvidia-cfg1-590, …; glibc →
+    libc6), none of its installed binaries carry the source coordinate, so its
+    advisories won't match. We deliberately do not invent a component for
+    software that isn't installed; Debian's binary/source split can't be matched
+    losslessly without it.
+    """
     src_name = pkg.source_name or pkg.name
-    src_ver = pkg.source_version or pkg.version
-    pkg.purl = _purl.deb(distro, src_name, src_ver, "source", codename)
+    if src_name == pkg.name:
+        src_ver = pkg.source_version or pkg.version
+        pkg.purl = _purl.deb(distro, pkg.name, src_ver, "source", codename)
+    else:
+        pkg.purl = _purl.deb(
+            distro, pkg.name, pkg.version, pkg.architecture or "",
+            codename, upstream=src_name,
+        )
 
 
 def _fill_output_mapping(pkg: PackageRecord) -> None:
@@ -322,7 +350,8 @@ class DpkgCollector(Collector):
         # emits these fields verbatim.
         distro, codename = _resolve_distro(self._distro, get_os_info())
         for pkg in packages:
-            _fill_purls(pkg, distro, codename)
+            _fill_bom_ref(pkg, distro, codename)
+            _fill_purl(pkg, distro, codename)
             _fill_output_mapping(pkg)
         _resolve_dependencies(packages)
 

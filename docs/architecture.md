@@ -90,9 +90,11 @@ graph references, and CycloneDX-specific classification (`component_type`, `scop
 Two fields are worth calling out because they're computed by the **collector**, not the
 formatter:
 
-- **`purl`** — the matchable coordinate a vulnerability scanner keys on (for `dpkg`: the source
-  package + `arch=source`; for `pip`: `pkg:pypi/<name>@<version>` with the name PEP 503
-  normalized).
+- **`purl`** — the matchable coordinate a vulnerability scanner keys on (for `dpkg`: the
+  `arch=source` coordinate when a package is its own source, else the binary coordinate +
+  `upstream=<source>` — best-effort, see
+  [Output format](output.md#source-coordinate-matching); for `pip`: `pkg:pypi/<name>@<version>`
+  with the name PEP 503 normalized).
 - **`bom_ref`** — a unique dependency-graph node id (for `dpkg`: the per-binary coordinate
   including `arch`; for `pip`: the same PURL, since each installed distribution is unique).
 

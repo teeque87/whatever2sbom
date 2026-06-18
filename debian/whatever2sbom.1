@@ -184,6 +184,29 @@ Debian/Ubuntu packages via
 enriched from
 .BR apt-cache (8)
 and DEP-5 copyright files. This is the default system.
+.PP
+OSV and the Ubuntu/Debian security trackers key advisories on the
+.I source
+package with
+.BR arch=source .
+A package that is its own source (binary name equals the source name, e.g.
+.BR bash ", " python3.12 )
+therefore carries the
+.B arch=source
+coordinate, so its CVEs match. A binary built from a differently-named source
+(e.g.
+.B libpython3.12-stdlib
+from source
+.BR python3.12 )
+carries its own binary coordinate plus an informational
+.B upstream=\fIsource\fR
+qualifier, so a shared source-level CVE is not reported once per binary. This is
+best-effort: when a source ships no binary of the same name (e.g.
+.B nvidia-graphics-drivers-590
+or
+.BR glibc ),
+its advisories will not match, and no component is invented for software that is
+not installed.
 .TP
 .B \-\-distro \fIID\fR
 Override the distribution identifier used in package PURLs (e.g.

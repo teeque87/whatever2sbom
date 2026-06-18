@@ -45,20 +45,36 @@ def npm(name: str, version: str) -> str:
     return f"pkg:npm/{name}@{quote_version(version)}"
 
 
-def deb(distro: str, name: str, version: str, arch: str, codename: str | None) -> str:
+def deb(
+    distro: str,
+    name: str,
+    version: str,
+    arch: str,
+    codename: str | None,
+    upstream: str | None = None,
+) -> str:
     """Build a Debian/Ubuntu package-url:
 
-        pkg:deb/<distro>/<name>@<version>?arch=<arch>&distro=<codename>
+        pkg:deb/<distro>/<name>@<version>?arch=<arch>&distro=<codename>&upstream=<src>
 
     The arch and codename qualifiers are optional: an empty arch (or the dpkg
     meta-arch "all") omits the arch qualifier, and an empty codename omits
     distro. Pass arch="source" to produce the source coordinate that
     Debian/Ubuntu security data is keyed on.
+
+    `upstream` records the source package a binary was built from (the
+    Syft/Grype convention `upstream=<source-name>`). It is a de-facto qualifier,
+    not part of the official pkg:deb spec, and is only set on binary coordinates
+    whose source identity is carried separately (see DpkgCollector). Qualifiers
+    are emitted in the order arch, upstream, distro (the source-relationship
+    qualifiers kept together, ahead of distro).
     """
     out = f"pkg:deb/{distro}/{name}@{quote_version(version)}"
     qualifiers: list[str] = []
     if arch and arch != "all":
         qualifiers.append(f"arch={arch}")
+    if upstream:
+        qualifiers.append(f"upstream={upstream}")
     if codename:
         qualifiers.append(f"distro={codename}")
     if qualifiers:
