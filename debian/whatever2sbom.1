@@ -164,6 +164,21 @@ JSON file mapping plugin name to a config object. Merged
 any inline
 .B \-\-plugin\-config
 values, which win on conflict.
+.PP
+Two plugins ship built in.
+.B patch-purl
+rewrites the PURL namespace of named components (config:
+.IR namespace ", " packages ).
+.B promote-upstream
+rewrites a named deb component's
+.B upstream=\fIsource\fR
+qualifier into the matchable source coordinate
+.RB ( arch=source ),
+re-enabling OSV/Dependency-Track detection for a binary whose source package has
+a different name \(em e.g. a custom kernel image built from
+.B linux-hwe-6.17
+(config:
+.IR packages ).
 .SH SYSTEM-SPECIFIC OPTIONS
 Each system contributes its own options, listed below. Note that
 .B \-\-help

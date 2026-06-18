@@ -146,3 +146,41 @@ whatever2sbom --product-supplier acme \
 
 Its source (`src/whatever2sbom/plugins/builtin/patch-purl.py`) is a complete, commented example to
 copy from when writing your own.
+
+## Built-in: `promote-upstream`
+
+For `dpkg`, the matchable PURL uses the source coordinate (`arch=source`) **only** for packages
+that are their own source; a binary built from a differently-named source instead carries its own
+binary coordinate plus an informational `upstream=<source>` qualifier, which OSV/Dependency-Track
+do **not** match on (see [Output format](output.md#source-coordinate-matching)). That's a
+deliberate best-effort trade-off to avoid per-binary duplicate findings — but it means those
+packages aren't scanned for source-level CVEs.
+
+`promote-upstream` lets you opt specific packages back into source matching. For each named
+component whose PURL has an `upstream=<source>` qualifier, it rewrites the PURL to the source
+coordinate: the name segment becomes the upstream source, `arch` becomes `source`, and the
+`upstream` qualifier is dropped. The component's `name` and `bom-ref` are left untouched — only the
+matchable PURL changes.
+
+The motivating case is a custom/HWE kernel, whose image binary is built from a source like
+`linux-hwe-6.17` that advisories are published against:
+
+```
+pkg:deb/ubuntu/linux-image-unsigned-6.17.0-14-customos@6.17.0-14.14-0?arch=amd64&distro=noble&upstream=linux-hwe-6.17
+→ pkg:deb/ubuntu/linux-hwe-6.17@6.17.0-14.14-0?arch=source&distro=noble
+```
+
+| Config key | Required | Meaning |
+|---|---|---|
+| `packages` | yes | List of component names to promote. Matching is loose (same rule as `patch-purl`): a name matches if it equals an entry exactly, or begins with it followed by `-`, so `linux-image-unsigned` catches `linux-image-unsigned-6.17.0-14-customos`. |
+
+```
+whatever2sbom --product-supplier acme \
+    --plugin promote-upstream \
+    --plugin-config promote-upstream:packages=linux-image-unsigned
+```
+
+A matched component with no `upstream=` qualifier (e.g. one that is already its own source) is left
+unchanged. **Caveat:** if several matched binaries share the same upstream source, they're all
+rewritten to the *same* source coordinate, re-introducing the per-binary duplication this tool
+otherwise avoids — so name the packages precisely (usually just the kernel image package).
