@@ -81,7 +81,7 @@ real binaries keep their own unique coordinates (no duplication).
 These components are **logical**, not installed artifacts: they have no file, hash, or licence. They
 inherit the packaging metadata their binaries share (`supplier` from the common `Maintainer`,
 `homepage`) and a `description` listing the binaries they cover, and they are marked with the
-property `whatever2sbom:source-pseudo-component=true`. That marker is why they are excluded from the
+property `dpkg:source-pseudo-component=true`. That marker is why they are excluded from the
 hash/license [coverage statistics](#coverage-statistics) below and validated with the relaxed
 "logical component" rules under [`--bsi-tr-compliant`](validation.md) (no filename/SHA-512/licence
 requirement). A source group that already contains a same-named binary needs no such component —

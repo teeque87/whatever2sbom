@@ -214,7 +214,7 @@ a single logical
 .B arch=source
 component is added for that source so its advisories still match; it is marked
 with the property
-.B whatever2sbom:source-pseudo-component
+.B dpkg:source-pseudo-component
 and validated as a logical node under
 .BR \-\-bsi\-tr\-compliant .
 .TP
@@ -237,6 +237,27 @@ Skip licence extraction from
 The
 .B licenses
 field is then empty on all components.
+.TP
+.B \-\-exclude \fIPATTERN\fR
+Exclude an installed package from the SBOM. \fIPATTERN\fR is an exact package
+name, or a glob when it contains
+.BR * ", " ? ", or " [...]
+(e.g.
+.BR linux-image-* ", " *-dbg ).
+Matching is case-sensitive, against the bare package name. May be given multiple
+times and is merged with
+.BR \-\-exclude\-file .
+Exclusion happens before the dependency graph and synthetic source components
+are built; a pattern matching no installed package is reported on stderr.
+.TP
+.B \-\-exclude\-file \fIFILE\fR
+Read exclusion patterns from
+.IR FILE ,
+one name or glob per line. Blank lines and
+.B #
+comments (whole-line or trailing) are ignored. Merged with any
+.B \-\-exclude
+values.
 .SS npm system options
 Node.js packages resolved from an npm
 .IR package-lock.json .

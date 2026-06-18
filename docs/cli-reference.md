@@ -74,6 +74,8 @@ step does.
 | `--distro ID` | Override the distro identifier used in package PURLs (e.g. `ubuntu`, `debian`). Auto-detected from `/etc/os-release` if omitted. |
 | `--no-apt-cache` | Skip `apt-cache show` enrichment. Hashes and download metadata will be absent for most packages. |
 | `--no-licenses` | Skip reading `/usr/share/doc/<pkg>/copyright`. The `licenses` field will be empty on all components. |
+| `--exclude PATTERN` | Exclude an installed package from the SBOM: an exact name or a glob (`*`, `?`, `[...]`), e.g. `linux-image-*`. Repeatable; merged with `--exclude-file`. See [Excluding packages](systems/dpkg.md#excluding-packages). |
+| `--exclude-file FILE` | File of packages to exclude, one name/glob per line (blank lines and `#` comments ignored). Merged with any `--exclude` values. |
 
 ### `npm` system options
 

@@ -1,7 +1,9 @@
+import fnmatch
 import logging
 import re
 import subprocess
 from collections import Counter
+from pathlib import Path
 
 from whatever2sbom.collectors.base import Collector
 from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY, PackageRecord
@@ -366,14 +368,101 @@ def _fill_output_mapping(pkg: PackageRecord) -> None:
     # in dpkg-query's output), so supplier_contacts is derived there.
 
 
+# package exclusion (--exclude / --exclude-file)
+
+_GLOB_CHARS = frozenset("*?[")
+
+
+def _is_glob(pattern: str) -> bool:
+    return any(c in _GLOB_CHARS for c in pattern)
+
+
+def read_exclude_file(path: str) -> list[str]:
+    """Read newline-separated exclusion patterns from a file.
+
+    Blank lines and `#` comments (whole-line or trailing) are ignored, and
+    surrounding whitespace is trimmed — so the list can be annotated with the
+    reason for each entry. dpkg package names never contain `#`, so splitting on
+    it is safe.
+    """
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except OSError as e:
+        raise RuntimeError(f"could not read --exclude-file {path!r}: {e}") from e
+    patterns: list[str] = []
+    for line in text.splitlines():
+        entry = line.split("#", 1)[0].strip()
+        if entry:
+            patterns.append(entry)
+    return patterns
+
+
+class _ExcludeFilter:
+    """Match package names against exclusion patterns.
+
+    A pattern with a glob metacharacter (`*`, `?`, `[`) is matched with
+    case-sensitive `fnmatch` (e.g. `linux-image-*`, `*-dbg`); every other
+    pattern is an exact name match. Matching against the bare package name (the
+    collector already strips any `:arch` qualifier) keeps exclusion predictable —
+    a destructive operation, so it never does surprising prefix matching.
+    """
+
+    def __init__(self, patterns: list[str]) -> None:
+        # Preserve order, drop duplicates — used for the "matched nothing" report.
+        self._patterns = list(dict.fromkeys(patterns))
+        self._exact = {p for p in self._patterns if not _is_glob(p)}
+        self._globs = [p for p in self._patterns if _is_glob(p)]
+        self.matched: set[str] = set()
+        self.removed = 0
+
+    def _hit(self, name: str) -> str | None:
+        if name in self._exact:
+            return name
+        return next((g for g in self._globs if fnmatch.fnmatchcase(name, g)), None)
+
+    def keep(self, packages: list[PackageRecord]) -> list[PackageRecord]:
+        """Return the packages that are *not* excluded, recording what matched."""
+        kept: list[PackageRecord] = []
+        for pkg in packages:
+            hit = self._hit(pkg.name)
+            if hit is None:
+                kept.append(pkg)
+            else:
+                self.matched.add(hit)
+                self.removed += 1
+        return kept
+
+    def unmatched(self) -> list[str]:
+        """Patterns that excluded nothing — surfaced as a warning (likely typos)."""
+        return [p for p in self._patterns if p not in self.matched]
+
+
 class DpkgCollector(Collector):
     """Collect installed packages via dpkg-query."""
 
     name = "dpkg"
 
-    def __init__(self, installed_only: bool = True, distro: str | None = None) -> None:
+    def __init__(
+        self,
+        installed_only: bool = True,
+        distro: str | None = None,
+        exclude: list[str] | None = None,
+        exclude_file: str | None = None,
+    ) -> None:
         self._installed_only = installed_only
         self._distro = distro
+        self._exclude = exclude
+        self._exclude_file = exclude_file
+
+    def _make_exclude_filter(self) -> _ExcludeFilter | None:
+        """Merge inline --exclude patterns with any --exclude-file entries.
+
+        The file is read here (not in the CLI layer) so a read error surfaces as
+        a clean pipeline RuntimeError alongside other collector failures."""
+        patterns = list(self._exclude or [])
+        if self._exclude_file:
+            patterns += read_exclude_file(self._exclude_file)
+        return _ExcludeFilter(patterns) if patterns else None
 
     def collect(self) -> list[PackageRecord]:
         fmt = _build_format_string()
@@ -400,6 +489,14 @@ class DpkgCollector(Collector):
                     continue
             packages.append(_to_record(raw))
 
+        # Drop excluded packages up front, before the dependency graph and the
+        # synthetic source components are built: dependency edges to an excluded
+        # package are then never resolved (no dangling refs), and a source group
+        # emptied by exclusion produces no pseudo-component.
+        exclude = self._make_exclude_filter()
+        if exclude is not None:
+            packages = exclude.keep(packages)
+
         # PURLs, CycloneDX type/scope/properties, and the dependency graph are
         # all ecosystem facts, so the collector owns them: the formatter just
         # emits these fields verbatim.
@@ -411,11 +508,25 @@ class DpkgCollector(Collector):
 
         # Add logical "source" components for source packages with no same-named
         # binary, so their advisories are still matchable. Done after the per-
-        # package pass (their fields are set directly, not via _fill_*).
+        # package pass (their fields are set directly, not via _fill_*). The
+        # exclusion filter is applied to them too — nothing depends on a pseudo
+        # component and they declare no dependencies, so dropping one is safe —
+        # so excluding a source by name (or glob) removes its pseudo-component.
         pseudo = _build_pseudo_sources(packages, distro, codename)
+        if exclude is not None:
+            pseudo = exclude.keep(pseudo)
         packages.extend(pseudo)
 
         _resolve_dependencies(packages)
+
+        if exclude is not None:
+            unmatched = exclude.unmatched()
+            if unmatched:
+                logger.warning(
+                    "exclude: %d pattern(s) matched no package: %s",
+                    len(unmatched), ", ".join(unmatched),
+                )
+            logger.info("  -- excluded %d package(s)", exclude.removed)
 
         logger.info("  <- %d packages found (+%d source components)", len(packages) - len(pseudo), len(pseudo))
         return packages
