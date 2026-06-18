@@ -1,0 +1,35 @@
+name: deb
+
+# Build a .deb on every push to main (for testing installs between releases).
+# No docs, no GitHub release — just an artifact that expires on its own.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deb-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build .deb
+        run: bash build_deb.sh
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: deb-${{ github.sha }}
+          path: build/deb/*.deb
+          retention-days: 14
