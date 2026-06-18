@@ -17,7 +17,7 @@ from the local `dpkg` database and enriches it in two independent steps:
 | `--distro ID` | Override the distro identifier used in package PURLs (e.g. `ubuntu`, `debian`). Auto-detected from `/etc/os-release` if omitted. |
 | `--no-apt-cache` | Skip `apt-cache show` enrichment. Hashes and download metadata will be absent for most packages. |
 | `--no-licenses` | Skip reading copyright files. The `licenses` field will be empty on all components. |
-| `--exclude PATTERN` | Exclude an installed package from the SBOM. Repeatable; merged with `--exclude-file`. See [Excluding packages](#excluding-packages). |
+| `--exclude PATTERN` | Exclude an installed package from the SBOM. Accepts a comma-separated list; repeatable; merged with `--exclude-file`. See [Excluding packages](#excluding-packages). |
 | `--exclude-file FILE` | File of packages to exclude, one per line. Merged with any `--exclude` values. |
 
 ## Excluding packages
@@ -38,13 +38,24 @@ multi-arch packages is already stripped). Exact matching is intentionally litera
 destructive, so a short name never silently sweeps up a whole family; reach for a glob when you mean
 one.
 
-Inline and file patterns are merged, so small lists fit on the command line and long ones live in a
-file:
+`--exclude` is repeatable **and** accepts a comma-separated list, so any of these are equivalent
+ways to give multiple patterns:
+
+```bash
+# repeated flag
+--exclude snapd --exclude 'linux-image-*'
+
+# comma-separated (mind the quoting around globs — see below)
+--exclude snapd,'linux-image-*'
+```
+
+Commas are the list separator, so a pattern can't itself contain one (package names never do, and
+glob character classes don't need them). Inline and file patterns are merged, so small lists fit on
+the command line and long ones live in a file:
 
 ```bash
 whatever2sbom --product-supplier "Acme" \
-  --exclude snapd \
-  --exclude 'linux-image-*' \
+  --exclude snapd,'linux-image-*' \
   --exclude-file ./excludes.txt
 ```
 

@@ -106,3 +106,20 @@ def test_dpkg_system_handles_absent_exclude_args() -> None:
     collector = DpkgSystem().make_collector(argparse.Namespace(distro=None))
     assert collector._exclude is None
     assert collector._exclude_file is None
+
+
+def test_exclude_values_are_comma_split_and_flattened() -> None:
+    # A repeatable flag where each value may itself be a comma-separated list,
+    # with whitespace trimmed and empties dropped. Globs survive intact.
+    args = argparse.Namespace(
+        distro=None,
+        exclude=["linux-libc-dev, *-dev", "snapd", "  ,  "],
+        exclude_file=None,
+    )
+    collector = DpkgSystem().make_collector(args)
+    assert collector._exclude == ["linux-libc-dev", "*-dev", "snapd"]
+
+
+def test_exclude_empty_yields_none() -> None:
+    args = argparse.Namespace(distro=None, exclude=[], exclude_file=None)
+    assert DpkgSystem().make_collector(args)._exclude is None

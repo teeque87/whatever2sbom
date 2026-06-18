@@ -9,13 +9,30 @@ from whatever2sbom.systems.base import SystemPlugin
 
 _EXCLUDE_HELP = (
     "Exclude an installed package from the SBOM. Either an exact package name "
-    "or a glob (*, ?, [...]), e.g. 'linux-image-*' or '*-dbg'. Repeatable; "
-    "merged with --exclude-file."
+    "or a glob (*, ?, [...]), e.g. 'linux-image-*' or '*-dbg'. Accepts a "
+    "comma-separated list (linux-libc-dev,'*-dev'); repeatable; merged with "
+    "--exclude-file."
 )
 _EXCLUDE_FILE_HELP = (
     "File of packages to exclude, one name or glob per line. Blank lines and "
     "'#' comments are ignored. Merged with any --exclude values."
 )
+
+
+def _split_exclude(values: list[str] | None) -> list[str] | None:
+    """Flatten comma-separated --exclude values into a list of patterns.
+
+    Each occurrence of the (repeatable) flag may itself be a comma-separated
+    list, so `--exclude a,b --exclude c` yields [a, b, c]. Whitespace is trimmed
+    and empty items dropped. Commas are the list separator, so a pattern cannot
+    itself contain one — package names never do, and glob character classes
+    don't need them."""
+    if not values:
+        return None
+    patterns: list[str] = []
+    for value in values:
+        patterns += [p.strip() for p in value.split(",") if p.strip()]
+    return patterns or None
 
 
 class DpkgSystem(SystemPlugin):
@@ -60,7 +77,7 @@ class DpkgSystem(SystemPlugin):
     def make_collector(self, args: argparse.Namespace) -> DpkgCollector:
         return DpkgCollector(
             distro=getattr(args, "distro", None),
-            exclude=getattr(args, "exclude", None),
+            exclude=_split_exclude(getattr(args, "exclude", None)),
             exclude_file=getattr(args, "exclude_file", None),
         )
 

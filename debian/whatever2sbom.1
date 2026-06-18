@@ -244,8 +244,10 @@ name, or a glob when it contains
 .BR * ", " ? ", or " [...]
 (e.g.
 .BR linux-image-* ", " *-dbg ).
-Matching is case-sensitive, against the bare package name. May be given multiple
-times and is merged with
+Matching is case-sensitive, against the bare package name. Accepts a
+comma-separated list (e.g.
+.IR linux-libc-dev,*-dev ),
+may be given multiple times, and is merged with
 .BR \-\-exclude\-file .
 Exclusion happens before the dependency graph and synthetic source components
 are built; a pattern matching no installed package is reported on stderr.
