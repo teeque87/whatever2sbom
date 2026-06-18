@@ -8,7 +8,7 @@ from typing import Optional
 # carry the matchable arch=source coordinate. The formatter excludes these from
 # hash/license coverage, and the BSI validator checks them with the relaxed
 # logical-component rules (they are not deployable artifacts).
-SOURCE_PSEUDO_COMPONENT_PROPERTY = "whatever2sbom:source-pseudo-component"
+SOURCE_PSEUDO_COMPONENT_PROPERTY = "dpkg:source-pseudo-component"
 
 
 @dataclass
