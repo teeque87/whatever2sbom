@@ -59,7 +59,7 @@ This creates a tension. Many binary packages are built from one source package (
 so emitting the `arch=source` coordinate on every one of them makes a PURL-keyed scanner report the
 same vulnerability once per binary — unusable noise.
 
-whatever2sbom resolves this **per package**, with no extra synthetic components:
+whatever2sbom resolves this **per package**:
 
 - A package that **is its own source** (its binary name equals the source name, or it has no
   distinct source — e.g. `bash`, `python3.12`, `openssl`) carries the `arch=source` coordinate that
@@ -69,12 +69,23 @@ whatever2sbom resolves this **per package**, with no extra synthetic components:
   match on binary names or `upstream`, so this binary never re-matches the source advisory — that is
   what stops the per-binary duplication.
 
-This is **best-effort**: when a source package ships *no* binary of the same name (e.g. source
-`nvidia-graphics-drivers-590` → `libnvidia-cfg1-590`, …; source `glibc` → `libc6`/`libc-bin`), none
-of its installed binaries carry the source coordinate, so its advisories won't match. We
-deliberately do **not** invent a "source" component for software that isn't installed — the SBOM
-describes what is actually on the system. Debian's binary/source split can't be matched losslessly
-without that compromise, and OSV/DT's source-only keying is a known rough edge of the ecosystem.
+#### Synthetic "source" components
+
+Some source packages ship **no** binary of the same name (e.g. source `nvidia-graphics-drivers-590`
+→ `libnvidia-cfg1-590`, …; source `linux-hwe-6.17` → `linux-image-unsigned-…`; source `glibc` →
+`libc6`/`libc-bin`). Per the rule above, none of those binaries would carry the source coordinate,
+so the source's advisories couldn't match at all. For each such group, whatever2sbom adds **one**
+logical "source" component carrying the `arch=source` coordinate, so detection still works while the
+real binaries keep their own unique coordinates (no duplication).
+
+These components are **logical**, not installed artifacts: they have no file, hash, or licence. They
+inherit the packaging metadata their binaries share (`supplier` from the common `Maintainer`,
+`homepage`) and a `description` listing the binaries they cover, and they are marked with the
+property `whatever2sbom:source-pseudo-component=true`. That marker is why they are excluded from the
+hash/license [coverage statistics](#coverage-statistics) below and validated with the relaxed
+"logical component" rules under [`--bsi-tr-compliant`](validation.md) (no filename/SHA-512/licence
+requirement). A source group that already contains a same-named binary needs no such component —
+that binary is the carrier.
 
 `upstream` is a de-facto qualifier widely emitted by Syft/Grype/Trivy; it is not part of the
 official `pkg:deb` spec, but PURL qualifiers are free-form `key=value` pairs, so it is spec-legal

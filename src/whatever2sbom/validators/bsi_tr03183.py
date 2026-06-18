@@ -11,6 +11,7 @@ creator e-mail/URL, SHA-512 hashes).
 
 import logging
 
+from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY
 from whatever2sbom.util import spdx
 from whatever2sbom.validators.base import Validator
 
@@ -95,7 +96,14 @@ class BsiTr03183Validator(Validator):
 
         for i, comp in enumerate(bom.get("components", [])):
             ref = comp.get("bom-ref") or comp.get("name", f"#{i}")
-            errors += self._check_component(comp, f"components[{ref}]")
+            where = f"components[{ref}]"
+            # Synthetic "source" components are logical nodes, not installed
+            # artifacts: they have no file/hash/licence, so they're checked with
+            # the relaxed logical-component rules (name/version/creator).
+            if _properties(comp).get(SOURCE_PSEUDO_COMPONENT_PROPERTY) == "true":
+                errors += self._check_logical_component(comp, where)
+            else:
+                errors += self._check_component(comp, where)
 
         if errors:
             logger.warning("BSI TR-03183-2 check failed: %d issue(s)", len(errors))

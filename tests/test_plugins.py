@@ -168,60 +168,6 @@ def test_patch_purl_requires_namespace_and_packages(config) -> None:
         plugin.run(_bom("pkg:deb/debian/bash@5.1"))
 
 
-# built-in promote-upstream
-
-def test_promote_upstream_kernel() -> None:
-    plugin = load_plugin("promote-upstream", {"packages": ["linux-image-unsigned"]})
-    bom = {
-        "components": [
-            {
-                "name": "linux-image-unsigned-6.17.0-14-customos",
-                "purl": "pkg:deb/ubuntu/linux-image-unsigned-6.17.0-14-customos"
-                        "@6.17.0-14.14-0?arch=amd64&distro=noble&upstream=linux-hwe-6.17",
-            }
-        ]
-    }
-    out = plugin.run(bom)
-    assert out["components"][0]["purl"] == \
-        "pkg:deb/ubuntu/linux-hwe-6.17@6.17.0-14.14-0?arch=source&distro=noble"
-
-
-def test_promote_upstream_loose_prefix_and_untouched() -> None:
-    plugin = load_plugin("promote-upstream", {"packages": ["linux-image-unsigned"]})
-    bom = {
-        "components": [
-            {"name": "linux-image-unsigned-6.17.0-14-customos",
-             "purl": "pkg:deb/ubuntu/linux-image-unsigned-6.17.0-14-customos@6.17.0-14.14-0"
-                     "?arch=amd64&distro=noble&upstream=linux-hwe-6.17"},
-            # unrelated package: not matched, left as-is
-            {"name": "bash", "purl": "pkg:deb/ubuntu/bash@5.3?arch=source&distro=noble"},
-        ]
-    }
-    out = plugin.run(bom)
-    assert out["components"][0]["purl"] == \
-        "pkg:deb/ubuntu/linux-hwe-6.17@6.17.0-14.14-0?arch=source&distro=noble"
-    assert out["components"][1]["purl"] == "pkg:deb/ubuntu/bash@5.3?arch=source&distro=noble"
-
-
-def test_promote_upstream_no_upstream_qualifier_is_left_unchanged() -> None:
-    # A matched component with no upstream= qualifier has nothing to promote.
-    plugin = load_plugin("promote-upstream", {"packages": ["linux-image-unsigned"]})
-    bom = {"components": [
-        {"name": "linux-image-unsigned-6.17.0-14-customos",
-         "purl": "pkg:deb/ubuntu/linux-image-unsigned-6.17.0-14-customos@6.17.0-14.14-0"
-                 "?arch=amd64&distro=noble"},
-    ]}
-    out = plugin.run(bom)
-    assert out["components"][0]["purl"] == \
-        "pkg:deb/ubuntu/linux-image-unsigned-6.17.0-14-customos@6.17.0-14.14-0?arch=amd64&distro=noble"
-
-
-def test_promote_upstream_requires_packages() -> None:
-    plugin = load_plugin("promote-upstream", {})
-    with pytest.raises(PluginError, match="requires 'packages'"):
-        plugin.run(_bom("pkg:deb/ubuntu/x@1?arch=amd64&upstream=y"))
-
-
 # pipeline integration
 
 class _StubCollector:

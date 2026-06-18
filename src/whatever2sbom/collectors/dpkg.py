@@ -1,9 +1,10 @@
 import logging
 import re
 import subprocess
+from collections import Counter
 
 from whatever2sbom.collectors.base import Collector
-from whatever2sbom.models import PackageRecord
+from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY, PackageRecord
 from whatever2sbom.util import purl as _purl
 from whatever2sbom.util.os_release import get_os_info
 
@@ -276,12 +277,11 @@ def _fill_purl(pkg: PackageRecord, distro: str, codename: str | None) -> None:
       being reported once per binary (python3.12, python3.12-minimal,
       libpython3.12-stdlib, … no longer all duplicate the same finding).
 
-    Best-effort consequence: when a source package ships no binary of the same
-    name (e.g. nvidia-graphics-drivers-590 → libnvidia-cfg1-590, …; glibc →
-    libc6), none of its installed binaries carry the source coordinate, so its
-    advisories won't match. We deliberately do not invent a component for
-    software that isn't installed; Debian's binary/source split can't be matched
-    losslessly without it.
+    When a source package ships no binary of the same name (e.g.
+    nvidia-graphics-drivers-590 → libnvidia-cfg1-590, …; glibc → libc6), none of
+    its installed binaries hit the first branch, so none carry the source
+    coordinate. _build_pseudo_sources adds a single logical source component for
+    those groups so their advisories still match.
     """
     src_name = pkg.source_name or pkg.name
     if src_name == pkg.name:
@@ -292,6 +292,61 @@ def _fill_purl(pkg: PackageRecord, distro: str, codename: str | None) -> None:
             distro, pkg.name, pkg.version, pkg.architecture or "",
             codename, upstream=src_name,
         )
+
+
+def _build_pseudo_sources(
+    packages: list[PackageRecord], distro: str, codename: str | None
+) -> list[PackageRecord]:
+    """Synthesize one logical "source" component per source package that has no
+    installed binary of the same name.
+
+    OSV/Ubuntu/Debian advisories are keyed on the source package with
+    arch=source, but a source like `nvidia-graphics-drivers-590` or
+    `linux-hwe-6.17` may ship only differently-named binaries
+    (`libnvidia-cfg1-590`, `linux-image-unsigned-…`). Without a same-named
+    binary, _fill_purl gives none of them the source coordinate, so their CVEs
+    can't match at all (the documented best-effort gap). For those groups we add
+    one logical component carrying the source coordinate, so detection works
+    while real binaries keep their own unique coordinates (no per-binary dupes).
+
+    A pseudo-component is not an installed artifact: it has no file, hash, or
+    licence. It inherits the packaging metadata its binaries share (maintainer,
+    homepage) so it stays a faithful, attributable node, and is marked with a
+    property so the formatter and BSI validator treat it as a logical node.
+    Groups that already contain a same-named binary need no pseudo-component —
+    that binary is the carrier.
+    """
+    groups: dict[str, list[PackageRecord]] = {}
+    for pkg in packages:
+        groups.setdefault(pkg.source_name or pkg.name, []).append(pkg)
+
+    pseudo: list[PackageRecord] = []
+    for src_name, members in groups.items():
+        if any(m.name == src_name for m in members):
+            continue  # a same-named binary already carries the source coordinate
+
+        # Members of one source group normally share a source version; pick the
+        # one most of them agree on (robust against a partial-upgrade skew).
+        versions = [m.source_version or m.version for m in members]
+        src_ver = Counter(versions).most_common(1)[0][0]
+        coord = _purl.deb(distro, src_name, src_ver, "source", codename)
+        covered = ", ".join(sorted(m.name for m in members))
+
+        pseudo.append(PackageRecord(
+            name=src_name,
+            version=src_ver,
+            source_name=src_name,
+            source_version=src_ver,
+            maintainer=next((m.maintainer for m in members if m.maintainer), None),
+            homepage=next((m.homepage for m in members if m.homepage), None),
+            description=f"Source package for: {covered}",
+            purl=coord,
+            bom_ref=coord,
+            component_type="library",
+            scope="required" if any(m.scope == "required" for m in members) else "optional",
+            extra_properties=[(SOURCE_PSEUDO_COMPONENT_PROPERTY, "true")],
+        ))
+    return pseudo
 
 
 def _fill_output_mapping(pkg: PackageRecord) -> None:
@@ -353,7 +408,14 @@ class DpkgCollector(Collector):
             _fill_bom_ref(pkg, distro, codename)
             _fill_purl(pkg, distro, codename)
             _fill_output_mapping(pkg)
+
+        # Add logical "source" components for source packages with no same-named
+        # binary, so their advisories are still matchable. Done after the per-
+        # package pass (their fields are set directly, not via _fill_*).
+        pseudo = _build_pseudo_sources(packages, distro, codename)
+        packages.extend(pseudo)
+
         _resolve_dependencies(packages)
 
-        logger.info("  <- %d packages found", len(packages))
+        logger.info("  <- %d packages found (+%d source components)", len(packages) - len(pseudo), len(pseudo))
         return packages

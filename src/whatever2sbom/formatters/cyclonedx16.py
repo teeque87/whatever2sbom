@@ -5,9 +5,20 @@ from pathlib import PurePosixPath
 
 import whatever2sbom
 from whatever2sbom.formatters.base import Formatter
-from whatever2sbom.models import PackageRecord
+from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY, PackageRecord
 from whatever2sbom.util import spdx
 from whatever2sbom.util.os_release import get_os_info
+
+
+def _is_pseudo_source(component: dict) -> bool:
+    """True for a synthetic dpkg "source" component (see PackageRecord).
+
+    These are logical nodes, not deployable artifacts, so they're excluded from
+    the hash/license coverage statistics."""
+    return any(
+        p.get("name") == SOURCE_PSEUDO_COMPONENT_PROPERTY and p.get("value") == "true"
+        for p in component.get("properties", [])
+    )
 
 
 _NAME_NORMALIZE_RE = re.compile(r"[-_.]+")
@@ -367,9 +378,15 @@ class CycloneDXFormatter(Formatter):
     def _build_metadata(
         self, os_info: dict[str, str], distro: str, components: list[dict]
     ) -> dict:
-        hash_coverage    = sum(1 for c in components if c.get("hashes"))
-        license_coverage = sum(1 for c in components if c.get("licenses"))
+        # Coverage percentages are over deployable artifacts only; synthetic
+        # "source" components have no file/hash/licence by nature, so counting
+        # them as "missing" would skew the stats. total-components still counts
+        # every component in the BOM.
+        artifacts        = [c for c in components if not _is_pseudo_source(c)]
+        hash_coverage    = sum(1 for c in artifacts if c.get("hashes"))
+        license_coverage = sum(1 for c in artifacts if c.get("licenses"))
         total = len(components)
+        artifact_total = len(artifacts)
 
         metadata: dict = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -389,9 +406,9 @@ class CycloneDXFormatter(Formatter):
         metadata["properties"] = [
             {"name": "sbom:total-components",     "value": str(total)},
             {"name": "sbom:hash-coverage",        "value": str(hash_coverage)},
-            {"name": "sbom:hash-coverage-pct",    "value": f"{hash_coverage / total * 100:.1f}%" if total else "0%"},
+            {"name": "sbom:hash-coverage-pct",    "value": f"{hash_coverage / artifact_total * 100:.1f}%" if artifact_total else "0%"},
             {"name": "sbom:license-coverage",     "value": str(license_coverage)},
-            {"name": "sbom:license-coverage-pct", "value": f"{license_coverage / total * 100:.1f}%" if total else "0%"},
+            {"name": "sbom:license-coverage-pct", "value": f"{license_coverage / artifact_total * 100:.1f}%" if artifact_total else "0%"},
         ]
 
         supplier: dict = {"name": self._product_supplier}

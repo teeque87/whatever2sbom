@@ -165,20 +165,10 @@ any inline
 .B \-\-plugin\-config
 values, which win on conflict.
 .PP
-Two plugins ship built in.
+One plugin ships built in:
 .B patch-purl
 rewrites the PURL namespace of named components (config:
 .IR namespace ", " packages ).
-.B promote-upstream
-rewrites a named deb component's
-.B upstream=\fIsource\fR
-qualifier into the matchable source coordinate
-.RB ( arch=source ),
-re-enabling OSV/Dependency-Track detection for a binary whose source package has
-a different name \(em e.g. a custom kernel image built from
-.B linux-hwe-6.17
-(config:
-.IR packages ).
 .SH SYSTEM-SPECIFIC OPTIONS
 Each system contributes its own options, listed below. Note that
 .B \-\-help
@@ -215,13 +205,18 @@ from source
 .BR python3.12 )
 carries its own binary coordinate plus an informational
 .B upstream=\fIsource\fR
-qualifier, so a shared source-level CVE is not reported once per binary. This is
-best-effort: when a source ships no binary of the same name (e.g.
+qualifier, so a shared source-level CVE is not reported once per binary. When a
+source ships no binary of the same name (e.g.
 .B nvidia-graphics-drivers-590
 or
-.BR glibc ),
-its advisories will not match, and no component is invented for software that is
-not installed.
+.BR linux-hwe-6.17 ),
+a single logical
+.B arch=source
+component is added for that source so its advisories still match; it is marked
+with the property
+.B whatever2sbom:source-pseudo-component
+and validated as a logical node under
+.BR \-\-bsi\-tr\-compliant .
 .TP
 .B \-\-distro \fIID\fR
 Override the distribution identifier used in package PURLs (e.g.

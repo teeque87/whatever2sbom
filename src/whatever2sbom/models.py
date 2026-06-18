@@ -2,6 +2,15 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+# Property name set on synthetic dpkg "source" pseudo-components (see
+# DpkgCollector._build_pseudo_sources). It marks a component that represents a
+# *source* package with no installed binary of the same name, added only to
+# carry the matchable arch=source coordinate. The formatter excludes these from
+# hash/license coverage, and the BSI validator checks them with the relaxed
+# logical-component rules (they are not deployable artifacts).
+SOURCE_PSEUDO_COMPONENT_PROPERTY = "whatever2sbom:source-pseudo-component"
+
+
 @dataclass
 class PackageRecord:
     """Uniform representation of a package from any source."""
