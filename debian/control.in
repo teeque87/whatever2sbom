@@ -4,7 +4,7 @@ Section: utils
 Priority: optional
 Architecture: __ARCH__
 Installed-Size: __SIZE__
-Depends: python3 (>= 3.11), python3-venv, python3-pip
+Depends: python3 (>= 3.10), python3-venv, python3-pip
 Maintainer: Michael Hansonis <whatever2sbom@teeque.dev>
 Homepage: https://github.com/teeque87/whatever2sbom
 Description: Generate a rich SBOM for whatever you throw at it
