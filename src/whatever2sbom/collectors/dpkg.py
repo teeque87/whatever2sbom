@@ -339,6 +339,7 @@ def _build_pseudo_sources(
             version=src_ver,
             source_name=src_name,
             source_version=src_ver,
+            group=src_name,
             maintainer=next((m.maintainer for m in members if m.maintainer), None),
             homepage=next((m.homepage for m in members if m.homepage), None),
             description=f"Source package for: {covered}",
@@ -360,9 +361,9 @@ def _fill_output_mapping(pkg: PackageRecord) -> None:
     """
     pkg.component_type = _map_component_type(pkg)
     pkg.scope = _map_scope(pkg)
-    # Group binaries under their source package (only when it differs from the
-    # binary name — a package that is its own source gets no redundant group).
-    pkg.group = pkg.source_name if pkg.source_name and pkg.source_name != pkg.name else None
+    # Group all components by their source package. For packages that are their
+    # own source, the group is simply the package name.
+    pkg.group = pkg.source_name or pkg.name
     pkg.bsi_executable = "non-executable"
     pkg.bsi_archive = "archive"
     pkg.bsi_structured = "structured"
