@@ -103,7 +103,8 @@ ecosystem-specific PURL rules (which differ a lot between deb, npm, pip, …) ou
 so the same `CycloneDXFormatter` works for every system.
 
 `extra_properties` is the escape hatch for ecosystem-specific metadata that doesn't fit anywhere
-else (e.g. `("dpkg:section", "libs")`) — formatters emit these as CycloneDX `properties` verbatim.
+else (e.g. `("npm:deprecated", "use foo instead")`) — formatters emit these as CycloneDX
+`properties` verbatim.
 
 ## Where things live
 

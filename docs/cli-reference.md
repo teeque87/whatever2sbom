@@ -21,7 +21,7 @@ whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
 | `-o`, `--output FILE` | `sbom_<timestamp>.<ext>` | Output file path. Extension is chosen by the formatter (`.cdx.json` for CycloneDX). |
 | `-v`, `--verbose` | off | Enable debug-level logging to stderr. |
 | `--performance-metrics` | off | Print a timing breakdown of each pipeline stage (collect / enrich / format / validate / write) to stderr. |
-| `--bsi-tr-compliant` | off | Additionally validate against the BSI TR-03183-2 v2.1.0 data-field requirements. Advisory — see [Validation](validation.md#bsi-tr-03183-2-compliance). |
+| `--bsi-tr-compliant` | off | **Experimental, not feature-complete.** Additionally validate against the BSI TR-03183-2 v2.1.0 data-field requirements. Advisory — see [Validation](validation.md#bsi-tr-03183-2-compliance). |
 
 ## Product metadata (BSI TR-03183)
 

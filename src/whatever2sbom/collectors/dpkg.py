@@ -42,29 +42,6 @@ def _map_scope(pkg: PackageRecord) -> str:
     return "optional"
 
 
-# extra (dpkg:*) properties
-
-_EXTRA_PROPERTY_FIELDS: list[tuple[str, str]] = [
-    ("section",        "dpkg:section"),
-    ("priority",       "dpkg:priority"),
-    ("installed_size", "dpkg:installed-size"),
-    ("size",           "dpkg:download-size"),
-    ("source",         "dpkg:source"),
-    ("source_name",    "dpkg:source-name"),
-    ("source_version", "dpkg:source-version"),
-    ("origin",         "dpkg:origin"),
-    ("multi_arch",     "dpkg:multi-arch"),
-]
-
-
-def _build_extra_properties(pkg: PackageRecord) -> list[tuple[str, str]]:
-    return [
-        (prop_name, str(getattr(pkg, field)))
-        for field, prop_name in _EXTRA_PROPERTY_FIELDS
-        if getattr(pkg, field, None)
-    ]
-
-
 # dependency graph (Depends/Pre-Depends/Provides)
 
 def _normalize_dep_name(token: str) -> str:
@@ -367,7 +344,6 @@ def _fill_output_mapping(pkg: PackageRecord) -> None:
     pkg.bsi_executable = "non-executable"
     pkg.bsi_archive = "archive"
     pkg.bsi_structured = "structured"
-    pkg.extra_properties = _build_extra_properties(pkg)
     # Original-Maintainer is only known after AptCacheEnricher runs (it's not
     # in dpkg-query's output), so supplier_contacts is derived there.
 

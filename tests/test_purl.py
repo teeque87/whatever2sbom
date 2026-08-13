@@ -143,10 +143,10 @@ def test_fill_purl(pkg, want_purl):
     # distinct source -> grouped under it
     (PackageRecord(name="libpython3.12-stdlib", version="3.12.3-1", source_name="python3.12"),
      "python3.12"),
-    # own source (source == name) -> no redundant group
-    (PackageRecord(name="bash", version="5.3", source_name="bash"), None),
-    # no source name at all -> no group
-    (PackageRecord(name="bash", version="5.3"), None),
+    # own source (source == name) -> grouped under the source name
+    (PackageRecord(name="bash", version="5.3", source_name="bash"), "bash"),
+    # no source name at all -> grouped under the package's own name
+    (PackageRecord(name="bash", version="5.3"), "bash"),
 ])
 def test_fill_output_mapping_group(pkg, want_group):
     _fill_output_mapping(pkg)

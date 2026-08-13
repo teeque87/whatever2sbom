@@ -37,9 +37,8 @@ each component when scanning `dpkg`; other systems may populate a different subs
   per BSI TR-03183-2's "Original licences" mapping
 - **`hashes`** — SHA-256, SHA-512, SHA-1, MD5 (populated by `apt-cache` enrichment)
 - **`externalReferences`** — homepage, bug tracker
-- **`properties`** — additional dpkg metadata: `dpkg:section`, `dpkg:priority`,
-  `dpkg:installed-size`, `dpkg:download-size`, `dpkg:source`, `dpkg:source-name`,
-  `dpkg:source-version`, `dpkg:origin`, `dpkg:multi-arch`; also
+- **`properties`** — the `bsi:component:*` fields (`filename`, `executable`, `archive`,
+  `structured`) required under [`--bsi-tr-compliant`](validation.md), plus
   `bsi:component:effectiveLicense` (Table 12, optional) — the SPDX expression for all declared
   licenses combined with `AND`, emitted when every declared license is itself SPDX-compliant
 - **`dependencies`** — direct `Depends` and `Pre-Depends`, with virtual package names resolved via

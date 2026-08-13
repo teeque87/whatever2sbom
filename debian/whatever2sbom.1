@@ -81,11 +81,15 @@ Print a per-stage timing breakdown (collect, enrich, format, validate, write) to
 standard error.
 .TP
 .B \-\-bsi\-tr\-compliant
+.RB "(" experimental ", not feature-complete)"
 After writing the SBOM, additionally check it against the BSI TR-03183-2 v2.1.0
 data-field requirements (SPDX-only licences, SHA-512 hashes, creator contact
-information, the \fBbsi:component:*\fR properties). This check is advisory and
-non-fatal: findings are summarised on standard error and written in full to
+information, the \fBbsi:component:*\fR properties). Off by default. This check is
+advisory and non-fatal: findings are summarised on standard error and written in
+full to
 .IR <output>.bsi-report.txt .
+A clean report is not a certification of compliance, and the set of checks may
+change as the implementation matures.
 .SH PRODUCT METADATA OPTIONS
 These describe the product the SBOM is
 .IR about ,

@@ -104,9 +104,10 @@ def _build_parser(selected_system: str) -> argparse.ArgumentParser:
         action="store_true",
         dest="bsi_tr_compliant",
         help=(
-            "Additionally validate the SBOM against the BSI TR-03183-2 v2.1.0 "
-            "data-field requirements (SPDX licences, SHA-512 hashes, creator "
-            "contact info, executable/archive/structured properties, …)"
+            "[experimental, not feature-complete] Additionally validate the SBOM "
+            "against the BSI TR-03183-2 v2.1.0 data-field requirements (SPDX "
+            "licences, SHA-512 hashes, creator contact info, "
+            "executable/archive/structured properties, …). Advisory only."
         ),
     )
 

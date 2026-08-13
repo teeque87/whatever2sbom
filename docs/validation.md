@@ -11,11 +11,12 @@ the schema's type/enum constraints) — it does not require `--bsi-tr-compliant`
 
 ## BSI TR-03183-2 compliance
 
-!!! warning "Work in progress — use as a guideline"
-    The BSI TR-03183-2 support is still under development and is intended as a guideline for
-    measuring an SBOM against the standard. It is **advisory only** — a clean report is not a
-    certification or a guarantee of compliance, and the set of checks may change as the
-    implementation matures. Treat its findings as a checklist, not a sign-off.
+!!! warning "Experimental — not feature-complete"
+    The BSI TR-03183-2 support is **experimental** and not feature-complete. It is opt-in
+    (off by default) and intended as a guideline for measuring an SBOM against the standard.
+    It is **advisory only** — a clean report is not a certification or a guarantee of
+    compliance, and the set of checks may change as the implementation matures. Treat its
+    findings as a checklist, not a sign-off.
 
 Every CycloneDX SBOM already includes the BSI TR-03183-2 §5.2.2 component fields by default:
 
