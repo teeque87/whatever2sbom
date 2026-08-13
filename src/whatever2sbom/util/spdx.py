@@ -126,6 +126,18 @@ def is_spdx_expression(expr: str) -> bool:
     return not expect_operand and depth == 0
 
 
+# A valid SPDX identifier/expression is a single short line. Anything with a
+# newline, or far longer than the longest real-world expression, is license
+# *text* that leaked into an identifier field (e.g. a package that pasted its
+# whole LICENSE into the metadata `License` field) -- never a valid entry.
+_MAX_LICENSE_ID_LEN = 200
+
+
+def is_probably_license_text(value: str) -> bool:
+    """True if `value` looks like license *text*, not a license *identifier*."""
+    return "\n" in value or len(value) > _MAX_LICENSE_ID_LEN
+
+
 def classify_license(raw: str) -> dict:
     """
     Classify a license string for CycloneDX output / BSI TR-03183-2 compliance.

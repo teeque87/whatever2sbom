@@ -5,10 +5,22 @@ import pytest
 from whatever2sbom.util.spdx import (
     classify_license,
     is_license_ref,
+    is_probably_license_text,
     is_spdx_expression,
     is_spdx_id,
     is_spdx_id_with_later,
 )
+
+
+@pytest.mark.parametrize("value, expected", [
+    ("MIT", False),
+    ("LGPL-2.1-only OR MPL-1.1", False),
+    ("LicenseRef-Acme-Foo", False),
+    ("GNU LESSER GENERAL PUBLIC LICENSE\nVersion 2.1", True),   # multi-line text
+    ("x" * 201, True),                                          # absurdly long
+])
+def test_is_probably_license_text(value: str, expected: bool) -> None:
+    assert is_probably_license_text(value) is expected
 
 
 @pytest.mark.parametrize("token, expected", [

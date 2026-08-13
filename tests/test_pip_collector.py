@@ -240,6 +240,56 @@ def test_license_ambiguous_classifier_not_mapped() -> None:
     assert _license(meta, _dist_for(meta)) is None
 
 
+def test_license_field_full_text_falls_through_to_classifier() -> None:
+    """A whole license text pasted into the free-text `License` field (as
+    PyGObject 3.56 does) is not trusted verbatim: resolution falls through to
+    the structured Trove classifier, recovering a valid SPDX id."""
+    meta = _meta(License=(
+        "GNU LESSER GENERAL PUBLIC LICENSE\n"
+        "Version 2.1, February 1999\n"
+        "Copyright (C) 1991, 1999 Free Software Foundation, Inc.\n"
+        "[...full license text...]"
+    ))
+    meta["Classifier"] = (
+        "License :: OSI Approved :: "
+        "GNU Lesser General Public License v2 or later (LGPLv2+)"
+    )
+    assert _license(meta, _dist_for(meta)) == "LGPL-2.0-or-later"
+
+
+def test_license_field_unmapped_short_name_falls_through_to_classifier() -> None:
+    """A legacy short name that isn't valid SPDX (e.g. "LGPLv2+") defers to a
+    classifier that maps cleanly, rather than being emitted as free text."""
+    meta = _meta(License="LGPLv2+")
+    meta["Classifier"] = (
+        "License :: OSI Approved :: "
+        "GNU Lesser General Public License v2 or later (LGPLv2+)"
+    )
+    assert _license(meta, _dist_for(meta)) == "LGPL-2.0-or-later"
+
+
+def test_license_field_kept_when_already_valid_spdx() -> None:
+    """A free-text `License` field that is itself a valid SPDX expression is
+    used directly and preferred over any classifier."""
+    meta = _meta(License="LGPL-2.1-only OR MPL-1.1")
+    meta["Classifier"] = "License :: OSI Approved :: MIT License"
+    assert _license(meta, _dist_for(meta)) == "LGPL-2.1-only OR MPL-1.1"
+
+
+def test_license_field_junk_with_no_other_source_is_none() -> None:
+    """Unrecognizable free text with no classifier/License-File resolves to
+    None -- reporting no license beats emitting an invalid one."""
+    meta = _meta(License="see the accompanying documentation for details")
+    assert _license(meta, _dist_for(meta)) is None
+
+
+def test_license_field_boilerplate_recovered_as_last_resort() -> None:
+    """When the free-text `License` field contains recognizable boilerplate and
+    nothing more structured is available, it's recovered via text signatures."""
+    meta = _meta(License=_MIT_TEXT)
+    assert _license(meta, _dist_for(meta)) == "MIT"
+
+
 def test_to_record_sets_license_from_expression() -> None:
     dist = _FakeDistribution("attrs", "26.1.0")
     dist.metadata["License-Expression"] = "MIT"

@@ -124,10 +124,14 @@ def _build_licenses(pkg: PackageRecord) -> list[dict] | None:
     declared by the package, not the result of a separate concluded-license
     analysis.
     """
-    if not pkg.licenses:
+    # Safety net: never emit license *text* that leaked into the license field
+    # (a whole LICENSE pasted into a package's metadata). Collectors aim to hand
+    # us only identifiers, but this guarantees a valid entry regardless.
+    values = [lic for lic in pkg.licenses if not spdx.is_probably_license_text(lic)]
+    if not values:
         return None
 
-    classified = [spdx.classify_license(lic) for lic in pkg.licenses]
+    classified = [spdx.classify_license(lic) for lic in values]
 
     if len(classified) == 1 and classified[0]["kind"] == "expression":
         return [{"expression": classified[0]["value"], "acknowledgement": "declared"}]

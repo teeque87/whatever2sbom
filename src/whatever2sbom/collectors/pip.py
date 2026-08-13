@@ -10,6 +10,7 @@ from packaging.requirements import Requirement
 from whatever2sbom.collectors.base import Collector
 from whatever2sbom.models import PackageRecord
 from whatever2sbom.util import purl as _purl
+from whatever2sbom.util import spdx
 
 logger = logging.getLogger(__name__)
 
@@ -169,18 +170,49 @@ def _license_from_files(dist: im.Distribution) -> str | None:
     return None
 
 
+def _valid_spdx(value: str) -> bool:
+    """True if `value` is already a valid SPDX id/expression/LicenseRef.
+
+    This is the gate that keeps the free-text `License` field honest: it is
+    only trusted verbatim when it actually classifies as SPDX-compliant, so a
+    whole license text pasted into that field (as PyGObject does) is rejected
+    here and resolution falls through to a structured source instead.
+    """
+    return spdx.classify_license(value)["compliant"]
+
+
 def _license(meta: im.PackageMetadata, dist: im.Distribution) -> str | None:
-    """Resolve the package's declared license, preferring the PEP 639
-    SPDX `License-Expression` field, falling back to the legacy free-text
-    `License` field, then a known "License :: ..." classifier, then
-    recognizing standard boilerplate in a bundled License-File."""
-    if expr := meta.get("License-Expression"):
+    """Resolve the package's declared license to a *valid* SPDX value, or None.
+
+    Every candidate is validated before it's returned, so the result is always
+    an SPDX identifier/expression/LicenseRef (never free text). Sources are
+    tried most-authoritative first:
+
+    1. the PEP 639 `License-Expression` field (the standard, machine-readable
+       source), when it validates;
+    2. the legacy free-text `License` field, but only when it is itself already
+       a valid SPDX id/expression (or a bare token renderable as LicenseRef-*);
+    3. a known "License :: ..." Trove classifier mapped to an SPDX id;
+    4. standard boilerplate recognized in a bundled License-File;
+    5. as a last resort, boilerplate recognized in the free-text `License`
+       field itself (a full license text pasted into it).
+
+    A value that resolves to nothing valid yields None -- reporting no license
+    is preferred over emitting an invalid one.
+    """
+    if (expr := meta.get("License-Expression")) and _valid_spdx(expr):
         return expr
-    if (lic := meta.get("License")) and lic.upper() != "UNKNOWN":
+    lic = meta.get("License")
+    has_license = bool(lic) and lic.upper() != "UNKNOWN"
+    if has_license and _valid_spdx(lic):
         return lic
     if spdx_id := _license_from_classifiers(meta):
         return spdx_id
-    return _license_from_files(dist)
+    if spdx_id := _license_from_files(dist):
+        return spdx_id
+    if has_license and (spdx_id := _classify_license_text(lic)):
+        return spdx_id
+    return None
 
 
 def _to_record(dist: im.Distribution) -> PackageRecord:

@@ -72,6 +72,14 @@ def test_no_licenses_omits_field() -> None:
     assert "licenses" not in bom["components"][0]
 
 
+def test_leaked_license_text_is_not_emitted() -> None:
+    """Safety net: a whole license text that leaked into the license field is
+    dropped rather than emitted as a giant `name`, even if a collector fed it."""
+    blob = "GNU LESSER GENERAL PUBLIC LICENSE\nVersion 2.1\n" + ("x" * 500)
+    bom = _format([_compliant_package(licenses=[blob])])
+    assert "licenses" not in bom["components"][0]
+
+
 # BSI properties / compositions
 
 def test_copyright_emitted_when_present() -> None:
