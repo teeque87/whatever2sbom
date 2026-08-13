@@ -1,0 +1,123 @@
+{# Overrides mkdocs-shadcn's templates/seo.html. Only the <title> block below is
+   customized: it is built from the nav breadcrumb as
+   "<site_name> - <section...> - <page>" (dropping the outermost nav group), so
+   browser tabs read e.g. "whatever2sbom - Systems - pip" and match the sidebar.
+   The remaining SEO/Open Graph/Twitter/JSON-LD markup is reproduced verbatim
+   from the theme so nothing else changes. #}
+{% block seo %}
+
+{#- Breadcrumb title: site name + ancestor sections (minus the top-level group)
+    + page title. page.ancestors is nearest-first, so reverse for top-down. -#}
+{%- if page.is_homepage -%}
+<title>{{ config.site_name }}</title>
+{%- else -%}
+{%- set crumbs = page.ancestors | reverse | list -%}
+{%- set sections = (crumbs[1:] if crumbs | length > 1 else []) | map(attribute="title") | list -%}
+<title>{{ ([config.site_name] + sections + [page.title]) | join(" - ") }}</title>
+{%- endif %}
+
+{% if page.meta.description %}
+<meta name="description" content="{{ page.meta.description }}">
+{% endif %}
+
+{% if page.meta.keywords %}
+<meta name="keywords" content="{{ page.meta.keywords }}">
+{% endif %}
+
+{% if page.meta.author %}
+<meta name="author" content="{{ page.meta.author }}">
+{% elif config.site_author %}
+<meta name="author" content="{{ config.site_author }}">
+{% endif %}
+
+{% if page.canonical_url %}
+<link rel="canonical" href="{{ page.canonical_url }}">
+{% endif %}
+
+<!-- Open Graph (Facebook, LinkedIn) -->
+{% if page.meta.title %}
+<meta property="og:title" content="{{ page.meta.title }}">
+{% else %}
+<meta property="og:title" content="{{ page.title }}">
+{% endif %}
+
+{% if page.meta.description %}
+<meta property="og:description" content="{{ page.meta.description }}">
+{% endif %}
+
+{% if page.canonical_url %}
+<meta property="og:url" content="{{ page.canonical_url }}">
+{% endif %}
+
+{% if page.meta.image %}
+<meta property="og:image" content="{{ page.meta.image }}">
+{% endif %}
+
+{% if site_name %}
+<meta property="og:site_name" content="{{ site_name }}">
+{% endif %}
+
+<!-- Twitter Card -->
+{% if page.meta.title %}
+<meta name="twitter:title" content="{{ page.meta.title }}">
+{% else %}
+<meta name="twitter:title" content="{{ page.title }}">
+{% endif %}
+
+{% if page.meta.description %}
+<meta name="twitter:description" content="{{ page.meta.description }}">
+{% endif %}
+
+{% if page.meta.image %}
+<meta name="twitter:image" content="{{ page.meta.image }}">
+{% endif %}
+
+<!-- JSON-LD Structured Data -->
+{% if page.meta.title and page.meta.description %}
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "{% if page.meta.title %}{{ page.meta.title }}{% else %}{{ page.title }}{% endif %}",
+    "url": "{{ page.canonical_url }}",
+    "description": "{{ page.meta.description }}",
+    {% if page.meta.author %}
+    "author": {
+      "@type": "Person",
+      "name": "{{ page.meta.author }}"
+    },
+    {% endif %}
+    {% if site_name %}
+    "publisher": {
+      "@type": "Organization",
+      "name": "{{ site_name }}",
+      {% if page.meta.image %}
+      "logo": {
+        "@type": "ImageObject",
+        "url": "{{ page.meta.image }}"
+      }
+      {% endif %}
+    },
+    {% endif %}
+    {% if page.meta.date %}
+    "datePublished": "{{ page.meta.date }}",
+    {% endif %}
+    {% if page.canonical_url %}
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "{{ page.canonical_url }}"
+    },
+    {% endif %}
+    {% if page.meta.image %}
+    "image": {
+      "@type": "ImageObject",
+      "url": "{{ page.meta.image }}",
+      "width": 1200,
+      "height": 630
+    }
+    {% endif %}
+  }
+  </script>
+{% endif %}
+
+{% endblock seo %}

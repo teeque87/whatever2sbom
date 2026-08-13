@@ -17,6 +17,12 @@ It can additionally check the result against the
 v2.1.0 cyber-resilience SBOM requirements and report exactly which fields are missing for full
 compliance.
 
+!!! warning "BSI TR-03183-2 support is experimental"
+    The `--bsi-tr-compliant` check is **experimental and not feature-complete**. It is opt-in
+    (off by default) and **advisory only** — a clean report is not a certification or a guarantee
+    of compliance, and the set of checks may change as it matures. See
+    [Validation](validation.md#bsi-tr-03183-2-compliance) for details.
+
 ## Why whatever2sbom
 
 - **Validated by default.** Every SBOM is checked against the bundled CycloneDX schema before it's
@@ -26,8 +32,9 @@ compliance.
 - **Rich provenance.** Components carry hashes (SHA-256/512/1, MD5), SPDX-classified licenses,
   copyright notices, supplier/author contacts, and a resolved dependency graph — not just a flat
   package list.
-- **Compliance-aware.** `--bsi-tr-compliant` runs an additional, advisory check against
-  BSI TR-03183-2 §5.2.2 and tells you precisely what's missing.
+- **Compliance-aware (experimental).** `--bsi-tr-compliant` runs an additional, advisory check
+  against BSI TR-03183-2 §5.2.2 and tells you precisely what's missing. This check is experimental
+  and not yet feature-complete.
 - **Built to be extended.** Scanning a new ecosystem (npm, …) or emitting a new output schema
   (SPDX, …) means writing one small plugin and registering it — see
   [Architecture](architecture.md) and [Extending whatever2sbom](extending.md).

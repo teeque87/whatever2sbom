@@ -11,6 +11,11 @@ It can additionally measure the result against the
 v2.1.0 cyber-resilience requirements and report exactly which fields are missing for full
 compliance.
 
+> [!WARNING]
+> The BSI TR-03183-2 check (`--bsi-tr-compliant`) is **experimental and not feature-complete**.
+> It is opt-in (off by default) and advisory only — a clean report is not a certification or a
+> guarantee of compliance, and the set of checks may change as it matures.
+
 ## What it does
 
 - **Scans real package state.** Debian/Ubuntu systems via `dpkg`/`apt`, a Python virtualenv via
@@ -23,9 +28,10 @@ compliance.
   no "trust me" mode; a schema failure is fatal and nothing is written.
 - **Runs offline.** All schemas and reference data (CycloneDX, the SPDX license list and
   expressions) ship with the tool. No network access at runtime, by design.
-- **Checks compliance.** An optional pass reports which BSI TR-03183-2 data fields are present or
-  missing, as a guideline for measuring an SBOM against the standard. This check is a work in
-  progress and advisory only — it is not a certification or a guarantee of compliance.
+- **Checks compliance (experimental).** An optional pass reports which BSI TR-03183-2 data fields
+  are present or missing, as a guideline for measuring an SBOM against the standard. This check is
+  **experimental and not feature-complete** — advisory only, and not a certification or a guarantee
+  of compliance.
 - **Extends cleanly.** New ecosystems and output schemas are added as small, self-contained pieces,
   and the finished document can be post-processed by optional plugins (for example, rewriting
   package-URL namespaces) without touching the core.
