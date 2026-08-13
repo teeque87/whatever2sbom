@@ -4,10 +4,21 @@ from datetime import datetime, timezone
 from pathlib import PurePosixPath
 
 import whatever2sbom
-from whatever2sbom.formatters.base import Formatter
-from whatever2sbom.models import PackageRecord
+from whatever2sbom.formatters.base import CoverageStats, Formatter
+from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY, PackageRecord
 from whatever2sbom.util import spdx
 from whatever2sbom.util.os_release import get_os_info
+
+
+def _is_pseudo_source(component: dict) -> bool:
+    """True for a synthetic dpkg "source" component (see PackageRecord).
+
+    These are logical nodes, not deployable artifacts, so they're excluded from
+    the hash/license coverage percentages."""
+    return any(
+        p.get("name") == SOURCE_PSEUDO_COMPONENT_PROPERTY and p.get("value") == "true"
+        for p in component.get("properties", [])
+    )
 
 
 _NAME_NORMALIZE_RE = re.compile(r"[-_.]+")
@@ -276,6 +287,24 @@ class CycloneDXFormatter(Formatter):
             "components":   components,
             "dependencies": dependencies,
             "compositions": self._build_compositions(root_ref, pkg_refs),
+        }
+
+    def coverage_stats(self, bom: dict) -> CoverageStats:
+        components = bom.get("components", [])
+        artifacts = [c for c in components if not _is_pseudo_source(c)]
+        artifact_total = len(artifacts)
+        hash_coverage    = sum(1 for c in artifacts if c.get("hashes"))
+        license_coverage = sum(1 for c in artifacts if c.get("licenses"))
+
+        def pct(n: int) -> str:
+            return f"{n / artifact_total * 100:.1f}%" if artifact_total else "0%"
+
+        return {
+            "total":                len(components),
+            "hash_coverage":        hash_coverage,
+            "hash_coverage_pct":    pct(hash_coverage),
+            "license_coverage":     license_coverage,
+            "license_coverage_pct": pct(license_coverage),
         }
 
     def _build_compositions(self, root_ref: str | None, pkg_refs: list[str]) -> list[dict]:
