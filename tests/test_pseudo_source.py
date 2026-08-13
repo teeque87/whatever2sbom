@@ -2,7 +2,7 @@
 collector, exclusion from coverage stats, and relaxed BSI validation."""
 
 from whatever2sbom.collectors.dpkg import _build_pseudo_sources
-from whatever2sbom.formatters.cyclonedx16 import CycloneDXFormatter
+from whatever2sbom.formatters.cyclonedx16 import CycloneDXFormatter, coverage_stats
 from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY, PackageRecord
 from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
 
@@ -101,14 +101,14 @@ def test_pseudo_excluded_from_coverage_percentages() -> None:
         extra_properties=[(SOURCE_PSEUDO_COMPONENT_PROPERTY, "true")],
     )
     bom = CycloneDXFormatter(product_supplier="Example Corp").format([real, pseudo])
-    props = {p["name"]: p["value"] for p in bom["metadata"]["properties"]}
+    stats = coverage_stats(bom["components"])
 
     # total counts every component, but the pseudo-component is not counted as a
     # "missing" artifact in the coverage percentages.
-    assert props["sbom:total-components"] == "2"
-    assert props["sbom:hash-coverage"] == "1"
-    assert props["sbom:hash-coverage-pct"] == "100.0%"
-    assert props["sbom:license-coverage-pct"] == "100.0%"
+    assert stats["total"] == 2
+    assert stats["hash_coverage"] == 1
+    assert stats["hash_coverage_pct"] == "100.0%"
+    assert stats["license_coverage_pct"] == "100.0%"
 
 
 # BSI validation (relaxed logical-component rules)

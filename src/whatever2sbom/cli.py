@@ -21,6 +21,7 @@ from pathlib import Path
 
 import whatever2sbom
 from whatever2sbom import registry
+from whatever2sbom.formatters.cyclonedx16 import coverage_stats
 from whatever2sbom.pipeline import SbomPipeline
 from whatever2sbom.plugins import PluginError, load_plugin, parse_plugin_configs
 from whatever2sbom.util import perf
@@ -364,19 +365,17 @@ def main(argv: list[str] | None = None) -> None:
             print("BSI TR-03183-2 compliance: no findings", file=sys.stderr)
 
     # summary
-    meta  = bom.get("metadata", {})
-    props = {p["name"]: p["value"] for p in meta.get("properties", [])}
+    stats = coverage_stats(bom.get("components", []))
 
     print(f"SBOM written -> {output}")
     print(f"  system          : {args.system}")
     print(f"  schema          : {args.schema} {args.spec_version}")
-    for key, label in (
-        ("sbom:total-components",    "total components"),
-        ("sbom:hash-coverage-pct",   "hash coverage"),
-        ("sbom:license-coverage-pct","license coverage"),
+    for label, value in (
+        ("total components", stats["total"]),
+        ("hash coverage",    stats["hash_coverage_pct"]),
+        ("license coverage", stats["license_coverage_pct"]),
     ):
-        if key in props:
-            print(f"  {label:<16}: {props[key]}")
+        print(f"  {label:<16}: {value}")
 
     if args.performance_metrics:
         perf.report()

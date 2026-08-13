@@ -97,12 +97,8 @@ and ignored by tools that do not understand it.
 
 ## Coverage statistics
 
-`metadata.properties` includes overall coverage statistics for the scan:
-
-```
-sbom:total-components
-sbom:hash-coverage / sbom:hash-coverage-pct
-sbom:license-coverage / sbom:license-coverage-pct
-```
-
-These are also printed in the CLI summary after a successful run.
+After a successful run the CLI prints overall coverage statistics for the scan
+— total component count, and hash/license coverage as a percentage of
+deployable artifacts (synthetic "source" components are excluded, since they
+have no file/hash/licence by nature). These are computed for the terminal
+summary only and are not embedded in the SBOM.

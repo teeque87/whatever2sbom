@@ -21,6 +21,33 @@ def _is_pseudo_source(component: dict) -> bool:
     )
 
 
+def coverage_stats(components: list[dict]) -> dict:
+    """Hash/license coverage for the CLI run summary.
+
+    Percentages are over deployable artifacts only; synthetic "source"
+    components have no file/hash/licence by nature, so counting them as
+    "missing" would skew the stats. `total` still counts every component.
+
+    Computed on demand from the formatted components (not embedded in the SBOM)
+    so the persisted document stays free of non-standard `sbom:*` properties.
+    """
+    artifacts = [c for c in components if not _is_pseudo_source(c)]
+    artifact_total = len(artifacts)
+    hash_coverage    = sum(1 for c in artifacts if c.get("hashes"))
+    license_coverage = sum(1 for c in artifacts if c.get("licenses"))
+
+    def pct(n: int) -> str:
+        return f"{n / artifact_total * 100:.1f}%" if artifact_total else "0%"
+
+    return {
+        "total":                len(components),
+        "hash_coverage":        hash_coverage,
+        "hash_coverage_pct":    pct(hash_coverage),
+        "license_coverage":     license_coverage,
+        "license_coverage_pct": pct(license_coverage),
+    }
+
+
 _NAME_NORMALIZE_RE = re.compile(r"[-_.]+")
 
 
@@ -259,7 +286,7 @@ class CycloneDXFormatter(Formatter):
 
         components   = [self._build_component(pkg) for pkg in packages]
         dependencies = self._build_dependencies(packages)
-        metadata     = self._build_metadata(os_info, distro, components)
+        metadata     = self._build_metadata(os_info, distro)
 
         # metadata.component is always the single root of the dependency tree.
         # If one of the scanned packages *is* the product (e.g. scanning a
@@ -383,19 +410,7 @@ class CycloneDXFormatter(Formatter):
             for pkg in packages
         ]
 
-    def _build_metadata(
-        self, os_info: dict[str, str], distro: str, components: list[dict]
-    ) -> dict:
-        # Coverage percentages are over deployable artifacts only; synthetic
-        # "source" components have no file/hash/licence by nature, so counting
-        # them as "missing" would skew the stats. total-components still counts
-        # every component in the BOM.
-        artifacts        = [c for c in components if not _is_pseudo_source(c)]
-        hash_coverage    = sum(1 for c in artifacts if c.get("hashes"))
-        license_coverage = sum(1 for c in artifacts if c.get("licenses"))
-        total = len(components)
-        artifact_total = len(artifacts)
-
+    def _build_metadata(self, os_info: dict[str, str], distro: str) -> dict:
         metadata: dict = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "tools": {
@@ -410,14 +425,6 @@ class CycloneDXFormatter(Formatter):
         component = self._build_metadata_component(os_info, distro)
         if component is not None:
             metadata["component"] = component
-
-        metadata["properties"] = [
-            {"name": "sbom:total-components",     "value": str(total)},
-            {"name": "sbom:hash-coverage",        "value": str(hash_coverage)},
-            {"name": "sbom:hash-coverage-pct",    "value": f"{hash_coverage / artifact_total * 100:.1f}%" if artifact_total else "0%"},
-            {"name": "sbom:license-coverage",     "value": str(license_coverage)},
-            {"name": "sbom:license-coverage-pct", "value": f"{license_coverage / artifact_total * 100:.1f}%" if artifact_total else "0%"},
-        ]
 
         supplier: dict = {"name": self._product_supplier}
         if self._product_supplier_url:
