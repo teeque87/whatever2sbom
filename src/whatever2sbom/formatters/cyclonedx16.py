@@ -5,47 +5,9 @@ from pathlib import PurePosixPath
 
 import whatever2sbom
 from whatever2sbom.formatters.base import Formatter
-from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY, PackageRecord
+from whatever2sbom.models import PackageRecord
 from whatever2sbom.util import spdx
 from whatever2sbom.util.os_release import get_os_info
-
-
-def _is_pseudo_source(component: dict) -> bool:
-    """True for a synthetic dpkg "source" component (see PackageRecord).
-
-    These are logical nodes, not deployable artifacts, so they're excluded from
-    the hash/license coverage statistics."""
-    return any(
-        p.get("name") == SOURCE_PSEUDO_COMPONENT_PROPERTY and p.get("value") == "true"
-        for p in component.get("properties", [])
-    )
-
-
-def coverage_stats(components: list[dict]) -> dict:
-    """Hash/license coverage for the CLI run summary.
-
-    Percentages are over deployable artifacts only; synthetic "source"
-    components have no file/hash/licence by nature, so counting them as
-    "missing" would skew the stats. `total` still counts every component.
-
-    Computed on demand from the formatted components (not embedded in the SBOM)
-    so the persisted document stays free of non-standard `sbom:*` properties.
-    """
-    artifacts = [c for c in components if not _is_pseudo_source(c)]
-    artifact_total = len(artifacts)
-    hash_coverage    = sum(1 for c in artifacts if c.get("hashes"))
-    license_coverage = sum(1 for c in artifacts if c.get("licenses"))
-
-    def pct(n: int) -> str:
-        return f"{n / artifact_total * 100:.1f}%" if artifact_total else "0%"
-
-    return {
-        "total":                len(components),
-        "hash_coverage":        hash_coverage,
-        "hash_coverage_pct":    pct(hash_coverage),
-        "license_coverage":     license_coverage,
-        "license_coverage_pct": pct(license_coverage),
-    }
 
 
 _NAME_NORMALIZE_RE = re.compile(r"[-_.]+")

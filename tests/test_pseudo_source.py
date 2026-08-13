@@ -2,7 +2,7 @@
 collector, exclusion from coverage stats, and relaxed BSI validation."""
 
 from whatever2sbom.collectors.dpkg import _build_pseudo_sources
-from whatever2sbom.formatters.cyclonedx16 import CycloneDXFormatter, coverage_stats
+from whatever2sbom.formatters.cyclonedx16 import CycloneDXFormatter
 from whatever2sbom.models import SOURCE_PSEUDO_COMPONENT_PROPERTY, PackageRecord
 from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
 
@@ -100,8 +100,8 @@ def test_pseudo_excluded_from_coverage_percentages() -> None:
         bom_ref="pkg:deb/ubuntu/foo@1.0?arch=source",
         extra_properties=[(SOURCE_PSEUDO_COMPONENT_PROPERTY, "true")],
     )
-    bom = CycloneDXFormatter(product_supplier="Example Corp").format([real, pseudo])
-    stats = coverage_stats(bom["components"])
+    fmt = CycloneDXFormatter(product_supplier="Example Corp")
+    stats = fmt.coverage_stats(fmt.format([real, pseudo]))
 
     # total counts every component, but the pseudo-component is not counted as a
     # "missing" artifact in the coverage percentages.

@@ -21,7 +21,6 @@ from pathlib import Path
 
 import whatever2sbom
 from whatever2sbom import registry
-from whatever2sbom.formatters.cyclonedx16 import coverage_stats
 from whatever2sbom.pipeline import SbomPipeline
 from whatever2sbom.plugins import PluginError, load_plugin, parse_plugin_configs
 from whatever2sbom.util import perf
@@ -365,7 +364,7 @@ def main(argv: list[str] | None = None) -> None:
             print("BSI TR-03183-2 compliance: no findings", file=sys.stderr)
 
     # summary
-    stats = coverage_stats(bom.get("components", []))
+    stats = formatter.coverage_stats(bom)
 
     print(f"SBOM written -> {output}")
     print(f"  system          : {args.system}")
