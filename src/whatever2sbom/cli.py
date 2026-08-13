@@ -164,10 +164,25 @@ def _build_parser(selected_system: str) -> argparse.ArgumentParser:
         help="Package-URL that uniquely identifies the product (e.g. pkg:generic/acme/fw@1.0)",
     )
     prod.add_argument(
+        "--product-author",
+        metavar="'Name <email>'",
+        action="append",
+        dest="product_author",
+        help=(
+            "Author(s) of the product itself, in 'Name <email>' format "
+            "(metadata.component.authors; may be given multiple times). "
+            "Distinct from --author, which records who created the SBOM"
+        ),
+    )
+    prod.add_argument(
         "--author",
         metavar="'Name <email>'",
         action="append",
-        help="SBOM author in 'Name <email>' format (may be given multiple times)",
+        help=(
+            "Author of the SBOM document in 'Name <email>' format "
+            "(metadata.authors; may be given multiple times). For who authored "
+            "the product, use --product-author instead"
+        ),
     )
 
     # plugins (optional post-processing, run last before validation)
@@ -269,15 +284,21 @@ def main(argv: list[str] | None = None) -> None:
     try:
         system    = registry.get_system(args.system)
 
-        # Systems that don't scan the host OS (e.g. pip, scanning a venv)
-        # have no fallback subject for metadata.component, so --product-name
-        # must be given explicitly -- unlike dpkg, where the host OS itself
-        # serves as the default subject.
-        if not system.scans_host_os and not args.product_name:
-            parser.error(
-                f"--product-name is required for --system {args.system} "
-                "(it cannot fall back to describing the host OS)"
-            )
+        # Systems that don't scan the host OS (e.g. pip, scanning a venv) have
+        # no fallback subject for metadata.component, so the product's name and
+        # version must be given explicitly -- neither is discoverable from the
+        # scan itself. dpkg differs: the host OS serves as the default subject,
+        # supplying both from /etc/os-release.
+        if not system.scans_host_os:
+            for flag, value in (
+                ("--product-name",    args.product_name),
+                ("--product-version", args.product_version),
+            ):
+                if not value:
+                    parser.error(
+                        f"{flag} is required for --system {args.system} "
+                        "(there is no host OS to describe as the product)"
+                    )
 
         product_type = args.product_type or system.default_product_type
         # Forward all parsed args as kwargs; registry filters to accepted params.
@@ -292,6 +313,7 @@ def main(argv: list[str] | None = None) -> None:
             product_supplier_url=args.product_supplier_url or [],
             product_supplier_email=args.product_supplier_email,
             product_purl=args.product_purl,
+            product_author=args.product_author or [],
             authors=args.author or [],
             describe_os=system.scans_host_os,
         )

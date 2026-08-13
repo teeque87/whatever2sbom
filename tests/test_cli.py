@@ -53,3 +53,18 @@ def test_pip_requires_product_name(capsys) -> None:
     assert exc_info.value.code == 2
     err = capsys.readouterr().err
     assert "--product-name is required for --system pip" in err
+
+
+def test_pip_requires_product_version(capsys) -> None:
+    """The product version isn't discoverable from a venv scan, so --system pip
+    requires it explicitly (once --product-name is supplied)."""
+    with pytest.raises(SystemExit) as exc_info:
+        main([
+            "--system", "pip",
+            "--product-supplier", "Acme GmbH",
+            "--product-name", "app",
+        ])
+
+    assert exc_info.value.code == 2
+    err = capsys.readouterr().err
+    assert "--product-version is required for --system pip" in err

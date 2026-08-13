@@ -4,6 +4,21 @@ The output is a CycloneDX BOM document (`.cdx.json`). This page describes the fi
 each component when scanning `dpkg`; other systems may populate a different subset (see
 [`PackageRecord`](architecture.md#the-packagerecord-model) for which fields are ecosystem-agnostic).
 
+## Document metadata
+
+The top-level `metadata` block describes the SBOM and the product it is *about* — not the packages
+inside it. Three roles there are easy to conflate (they may all be the same organization):
+
+- **`metadata.authors`** — who created the **SBOM document** (from `--author`). Per CycloneDX 1.6
+  this is for the *person(s)* who authored the BOM; a tool-generated BOM may leave it unset.
+- **`metadata.component`** — the **product** being described (`--product-name`/`--product-version`/
+  `--product-type`/`--product-purl`). Its `authors` (from `--product-author`) are who wrote the
+  *product*, and its `supplier` is who shipped it.
+- **`metadata.supplier`** — who **supplied** the product (from `--product-supplier`); mirrors
+  `metadata.component.supplier`.
+
+See the [CLI reference](cli-reference.md#whos-who-in-the-metadata) for the flag→field mapping.
+
 ## Component fields
 
 - **`bom-ref`** — unique per-binary coordinate used as the dependency graph node id:

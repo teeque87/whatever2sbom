@@ -30,20 +30,38 @@ found inside it. `--product-supplier` is required for every system; the rest are
 recommended for BSI TR-03183 compliance. When `--product-purl` is set, the product is also added
 as the root node of the dependency tree.
 
-`--product-name` is additionally **required for systems that don't scan the host OS** (currently
-`npm` and `pip`) — without it, there's nothing for `metadata.component` to describe, since (unlike
-`dpkg`) the scanned thing isn't the host OS and can't fall back to `/etc/os-release`.
+`--product-name` **and** `--product-version` are additionally **required for systems that don't
+scan the host OS** (currently `npm` and `pip`) — neither is discoverable from the scan itself, and
+(unlike `dpkg`) the scanned thing isn't the host OS, so it can't fall back to `/etc/os-release` for
+a name and version.
 
 | Option | Description |
 |---|---|
 | `--product-name NAME` | Name of the product or firmware image being described. Optional for `dpkg` (falls back to describing the host OS); **required** for `npm` and `pip`. |
-| `--product-version VERSION` | Version of the product. |
+| `--product-version VERSION` | Version of the product. Optional for `dpkg` (falls back to the host OS version); **required** for `npm` and `pip`. |
 | `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, `operating-system`, …) for `metadata.component` *when `--product-name` is set*. Default depends on `--system`: `operating-system` for `dpkg`, `application` for `npm`/`pip`. (For `dpkg` without `--product-name`, `metadata.component` describes the host OS, type `operating-system`, regardless of this option.) |
-| `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). |
+| `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). Who *supplied* the product → `metadata.supplier` and `metadata.component.supplier`. |
 | `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
 | `--product-supplier-email EMAIL` | Supplier contact e-mail address. Satisfies the BSI TR-03183-2 creator-contact requirement (§3.2.2 / §5.2.1). |
 | `--product-purl PURL` | Package-URL identifying the product, e.g. `pkg:generic/acme/fw@1.0`. Adds the product as the dependency-tree root. |
-| `--author 'Name <email>'` | SBOM author. May be given multiple times. Populates `metadata.authors`. |
+| `--product-author 'Name <email>'` | Author(s) of **the product itself** → `metadata.component.authors`. May be given multiple times. Distinct from `--author`. |
+| `--author 'Name <email>'` | Author(s) of **the SBOM document** → `metadata.authors`. May be given multiple times. |
+
+### Who's who in the metadata
+
+The `--author`/`--product-author`/`--product-supplier` split maps onto three distinct CycloneDX
+roles that are easy to conflate (they may all be the same organization, and that's fine):
+
+| CLI flag | Lands in | Answers |
+|---|---|---|
+| `--author` | `metadata.authors` | Who created the **SBOM document** |
+| `--product-author` | `metadata.component.authors` | Who created the **product** being described |
+| `--product-supplier` | `metadata.supplier` + `metadata.component.supplier` | Who **supplied** the product |
+
+Per the CycloneDX 1.6 schema, `metadata.authors` is meant for the *person(s)* who authored the
+BOM (common for manually-produced BOMs); a tool-generated BOM may instead leave it unset and rely
+on `--product-supplier` for the creator-contact requirement. `--product-author` is for recording
+who wrote the product, not who ran this tool.
 
 ## Plugins
 

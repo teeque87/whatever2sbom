@@ -42,6 +42,18 @@ def _parse_name_email(raw: str) -> tuple[str, str | None]:
     return raw.strip(), None
 
 
+def _parse_authors(entries: list[str]) -> list[dict]:
+    """Parse "Name <email>" strings into CycloneDX author objects."""
+    authors: list[dict] = []
+    for raw in entries:
+        name, email = _parse_name_email(raw)
+        author: dict = {"name": name}
+        if email:
+            author["email"] = email
+        authors.append(author)
+    return authors
+
+
 def _build_supplier(pkg: PackageRecord) -> dict | None:
     """
     CycloneDX `supplier`: who builds/distributes the component. `maintainer`
@@ -77,16 +89,7 @@ def _build_component_authors(pkg: PackageRecord) -> list[dict] | None:
     component's source code. Only set when the collector populated
     `pkg.authors` with genuine upstream-author metadata (see PackageRecord).
     """
-    if not pkg.authors:
-        return None
-    result: list[dict] = []
-    for raw in pkg.authors:
-        name, email = _parse_name_email(raw)
-        author: dict = {"name": name}
-        if email:
-            author["email"] = email
-        result.append(author)
-    return result
+    return _parse_authors(pkg.authors) or None
 
 
 # Deprecated SPDX license IDs (e.g. "GPL-2.0+") still resolve to a page on
@@ -239,6 +242,7 @@ class CycloneDXFormatter(Formatter):
         product_supplier_url: list[str] | None = None,
         product_supplier_email: str | None = None,
         product_purl: str | None = None,
+        product_author: list[str] | None = None,
         authors: list[str] | None = None,
         describe_os: bool = True,
     ) -> None:
@@ -250,6 +254,7 @@ class CycloneDXFormatter(Formatter):
         self._product_supplier_url = product_supplier_url or []
         self._product_supplier_email = product_supplier_email
         self._product_purl         = product_purl
+        self._product_author       = product_author or []
         self._authors              = authors or []
         self._describe_os          = describe_os
 
@@ -448,6 +453,9 @@ class CycloneDXFormatter(Formatter):
                 comp["version"] = self._product_version
             if self._product_purl:
                 comp["purl"] = self._product_purl
+            product_authors = _parse_authors(self._product_author)
+            if product_authors:
+                comp["authors"] = product_authors
             if self._product_supplier:
                 supplier: dict = {"name": self._product_supplier}
                 if self._product_supplier_url:
@@ -477,12 +485,5 @@ class CycloneDXFormatter(Formatter):
         return os_comp
 
     def _build_authors(self) -> list[dict]:
-        """Parse --author 'Name <email>' strings into CycloneDX author objects."""
-        result: list[dict] = []
-        for entry in self._authors:
-            m = re.match(r"^(.*?)\s*<([^>]+)>", entry.strip())
-            if m:
-                result.append({"name": m.group(1).strip(), "email": m.group(2).strip()})
-            else:
-                result.append({"name": entry.strip()})
-        return result
+        """The SBOM's authors (metadata.authors), from --author."""
+        return _parse_authors(self._authors)

@@ -94,9 +94,10 @@ change as the implementation matures.
 These describe the product the SBOM is
 .IR about ,
 as opposed to the components found inside it. They populate
-.B metadata.component
+.BR metadata.component ,
+.BR metadata.supplier ,
 and
-.BR metadata.supplier .
+.BR metadata.authors .
 .TP
 .B \-\-product\-supplier \fINAME\fR
 Supplier / vendor name (NTIA Supplier Name).
@@ -114,7 +115,13 @@ which have no host-OS fallback for
 .BR metadata.component .
 .TP
 .B \-\-product\-version \fIVERSION\fR
-Version of the product.
+Version of the product. Optional for
+.B dpkg
+(which can fall back to the host operating-system version); required for
+.B npm
+and
+.BR pip ,
+which cannot discover it from the scan.
 .TP
 .B \-\-product\-type \fITYPE\fR
 CycloneDX component type for the product
@@ -142,11 +149,22 @@ Package-URL uniquely identifying the product (e.g.
 .IR pkg:generic/acme/fw@1.0 ).
 When set, the product is also added as the root node of the dependency tree.
 .TP
+.B \-\-product\-author \fI'Name <email>'\fR
+Author(s) of the product itself, in
+.RI ' "Name <email>" '
+form. May be given multiple times; populates
+.BR metadata.component.authors .
+Distinct from
+.BR \-\-author ,
+which records who created the SBOM document.
+.TP
 .B \-\-author \fI'Name <email>'\fR
-SBOM author, in
+Author of the SBOM document, in
 .RI ' "Name <email>" '
 form. May be given multiple times; populates
 .BR metadata.authors .
+For who authored the product, use
+.BR \-\-product\-author .
 .SH PLUGIN OPTIONS
 Optional post-processing scripts that run last \(em after formatting, just
 before schema validation \(em so their output is still validated.

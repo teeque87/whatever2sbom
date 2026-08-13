@@ -80,6 +80,28 @@ def test_group_omitted_when_unset() -> None:
     assert "group" not in comp
 
 
+def test_product_author_sets_component_authors() -> None:
+    """--product-author records who authored the product itself
+    (metadata.component.authors), distinct from the SBOM's own authors."""
+    bom = _formatter(
+        product_name="app",
+        product_version="1.0",
+        product_author=["Jane Doe <jane@example.com>", "Ops Team"],
+    ).format([])
+
+    assert bom["metadata"]["component"]["authors"] == [
+        {"name": "Jane Doe", "email": "jane@example.com"},
+        {"name": "Ops Team"},
+    ]
+    # SBOM-level authors (metadata.authors) stay separate and unset here.
+    assert "authors" not in bom["metadata"]
+
+
+def test_product_author_absent_omits_component_authors() -> None:
+    bom = _formatter(product_name="app", product_version="1.0").format([])
+    assert "authors" not in bom["metadata"]["component"]
+
+
 def test_no_product_name_and_describe_os_false_omits_metadata_component() -> None:
     """e.g. --system pip without --product-name: the scanned thing isn't the
     host OS, so metadata.component must not be a misleading
