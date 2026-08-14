@@ -14,8 +14,10 @@ inside it. Three roles there are easy to conflate (they may all be the same orga
 - **`metadata.component`** — the **product** being described (`--product-name`/`--product-version`/
   `--product-type`/`--product-purl`). Its `authors` (from `--product-author`) are who wrote the
   *product*, and its `supplier` is who shipped it.
-- **`metadata.supplier`** — who **supplied** the product (from `--product-supplier`); mirrors
-  `metadata.component.supplier`.
+- **`metadata.manufacturer`** — the organization that **generated this SBOM** (from
+  `--product-supplier`). A distinct CycloneDX role from `metadata.component.supplier` (who
+  *supplies the product*), even when the same organization fills both — so the supplier identity
+  is not duplicated as a redundant top-level `metadata.supplier`.
 
 See the [CLI reference](cli-reference.md#whos-who-in-the-metadata) for the flag→field mapping.
 

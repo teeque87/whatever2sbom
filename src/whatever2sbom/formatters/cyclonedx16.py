@@ -422,12 +422,15 @@ class CycloneDXFormatter(Formatter):
         if component is not None:
             metadata["component"] = component
 
-        supplier: dict = {"name": self._product_supplier}
-        if self._product_supplier_url:
-            supplier["url"] = self._product_supplier_url
-        if self._product_supplier_email:
-            supplier["contact"] = [{"email": self._product_supplier_email}]
-        metadata["supplier"] = supplier
+        # metadata.manufacturer is "the organization that created the BOM" --
+        # a distinct CycloneDX role from metadata.component.supplier (who
+        # supplies the product), even when the same party fills both. Emitting
+        # the supplier org here (rather than duplicating it as metadata.supplier)
+        # avoids repeating the identical "supplier of the described component"
+        # and still satisfies the BSI TR-03183-2 §5.2.1 SBOM-creator contact.
+        manufacturer = self._build_product_org_entity()
+        if manufacturer is not None:
+            metadata["manufacturer"] = manufacturer
 
         authors = self._build_authors()
         if authors:
@@ -456,12 +459,8 @@ class CycloneDXFormatter(Formatter):
             product_authors = _parse_authors(self._product_author)
             if product_authors:
                 comp["authors"] = product_authors
-            if self._product_supplier:
-                supplier: dict = {"name": self._product_supplier}
-                if self._product_supplier_url:
-                    supplier["url"] = self._product_supplier_url
-                if self._product_supplier_email:
-                    supplier["contact"] = [{"email": self._product_supplier_email}]
+            supplier = self._build_product_org_entity()
+            if supplier is not None:
                 comp["supplier"] = supplier
             return comp
 
@@ -483,6 +482,20 @@ class CycloneDXFormatter(Formatter):
                 {"type": "website", "url": os_info["home_url"]}
             ]
         return os_comp
+
+    def _build_product_org_entity(self) -> dict | None:
+        """CycloneDX organizationalEntity for the product's supplier/vendor,
+        from --product-supplier*. The same party fills two distinct roles:
+        metadata.component.supplier (who supplies the product) and
+        metadata.manufacturer (who generated this SBOM)."""
+        if not self._product_supplier:
+            return None
+        entity: dict = {"name": self._product_supplier}
+        if self._product_supplier_url:
+            entity["url"] = self._product_supplier_url
+        if self._product_supplier_email:
+            entity["contact"] = [{"email": self._product_supplier_email}]
+        return entity
 
     def _build_authors(self) -> list[dict]:
         """The SBOM's authors (metadata.authors), from --author."""

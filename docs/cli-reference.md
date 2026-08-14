@@ -40,7 +40,7 @@ a name and version.
 | `--product-name NAME` | Name of the product or firmware image being described. Optional for `dpkg` (falls back to describing the host OS); **required** for `npm` and `pip`. |
 | `--product-version VERSION` | Version of the product. Optional for `dpkg` (falls back to the host OS version); **required** for `npm` and `pip`. |
 | `--product-type TYPE` | CycloneDX component type (`firmware`, `application`, `container`, `device`, `operating-system`, …) for `metadata.component` *when `--product-name` is set*. Default depends on `--system`: `operating-system` for `dpkg`, `application` for `npm`/`pip`. (For `dpkg` without `--product-name`, `metadata.component` describes the host OS, type `operating-system`, regardless of this option.) |
-| `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). Who *supplied* the product → `metadata.supplier` and `metadata.component.supplier`. |
+| `--product-supplier NAME` | **Required.** Supplier / vendor name (NTIA Supplier Name). Who *supplied* the product → `metadata.component.supplier`, and the org that generated the SBOM → `metadata.manufacturer`. |
 | `--product-supplier-url URL` | Supplier URL. May be given multiple times. |
 | `--product-supplier-email EMAIL` | Supplier contact e-mail address. Satisfies the BSI TR-03183-2 creator-contact requirement (§3.2.2 / §5.2.1). |
 | `--product-purl PURL` | Package-URL identifying the product, e.g. `pkg:generic/acme/fw@1.0`. Adds the product as the dependency-tree root. |
@@ -56,12 +56,15 @@ roles that are easy to conflate (they may all be the same organization, and that
 |---|---|---|
 | `--author` | `metadata.authors` | Who created the **SBOM document** |
 | `--product-author` | `metadata.component.authors` | Who created the **product** being described |
-| `--product-supplier` | `metadata.supplier` + `metadata.component.supplier` | Who **supplied** the product |
+| `--product-supplier` | `metadata.component.supplier` + `metadata.manufacturer` | Who **supplied** the product / **generated** the SBOM |
 
 Per the CycloneDX 1.6 schema, `metadata.authors` is meant for the *person(s)* who authored the
 BOM (common for manually-produced BOMs); a tool-generated BOM may instead leave it unset and rely
-on `--product-supplier` for the creator-contact requirement. `--product-author` is for recording
-who wrote the product, not who ran this tool.
+on `--product-supplier` for the creator-contact requirement. The supplier lands on
+`metadata.component.supplier` (who supplies the product) and on `metadata.manufacturer` (the org
+that generated the SBOM) — two distinct CycloneDX roles, so it is *not* duplicated as a redundant
+top-level `metadata.supplier`. `--product-author` is for recording who wrote the product, not who
+ran this tool.
 
 ## Plugins
 

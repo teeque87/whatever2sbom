@@ -102,6 +102,28 @@ def test_product_author_absent_omits_component_authors() -> None:
     assert "authors" not in bom["metadata"]["component"]
 
 
+def test_supplier_is_manufacturer_at_metadata_level_not_duplicated() -> None:
+    """The product supplier is the component's supplier and the BOM's
+    manufacturer (two distinct CycloneDX roles) -- not a redundant top-level
+    metadata.supplier that just repeats metadata.component.supplier."""
+    bom = CycloneDXFormatter(
+        product_name="app",
+        product_version="1.0",
+        product_supplier="Example Corp",
+        product_supplier_url=["https://example.com"],
+        product_supplier_email="ops@example.com",
+    ).format([])
+
+    expected = {
+        "name": "Example Corp",
+        "url": ["https://example.com"],
+        "contact": [{"email": "ops@example.com"}],
+    }
+    assert bom["metadata"]["manufacturer"] == expected
+    assert bom["metadata"]["component"]["supplier"] == expected
+    assert "supplier" not in bom["metadata"]
+
+
 def test_no_product_name_and_describe_os_false_omits_metadata_component() -> None:
     """e.g. --system pip without --product-name: the scanned thing isn't the
     host OS, so metadata.component must not be a misleading
