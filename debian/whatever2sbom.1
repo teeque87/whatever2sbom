@@ -9,6 +9,15 @@ whatever2sbom \- generate a validated CycloneDX SBOM from a system or project
 .I NAME
 .RB [ "system-specific options" ]
 .PP
+.B whatever2sbom merge
+.I MAIN INCOMING
+.RB [ \-o
+.IR FILE ]
+.RB [ \-\-mode
+.IR flat | hierarchical ]
+.RB [ \-\-on\-collision
+.IR auto | error ]
+.PP
 .B whatever2sbom
 .RB [ \-\-system
 .IR SYSTEM ]
@@ -324,6 +333,80 @@ Project root under which to auto-detect a virtualenv (a directory containing
 when
 .B \-\-venv\-dir
 is not given (default: current directory).
+.SH MERGE
+Generating an SBOM is the default action and takes no sub-command. The one
+other action is
+.BR merge ,
+which combines two existing SBOMs into one:
+.RS 4
+.EX
+whatever2sbom merge MAIN INCOMING [\-o FILE] [\-\-mode flat|hierarchical] \\
+                    [\-\-on\-collision auto|error]
+.EE
+.RE
+.PP
+.I MAIN
+keeps
+.B all
+of its own metadata (serial number, the described product in
+.IR metadata.component ,
+tools, authors).
+.IR INCOMING 's
+components are merged into
+.IR MAIN 's
+component list with their dependency relationships preserved. The SBOM format is
+auto-detected from the documents (both inputs must be the same format), and the
+merged result is always schema-validated before it is written.
+.TP
+.I MAIN
+Base SBOM whose metadata is retained.
+.TP
+.I INCOMING
+SBOM whose components are merged into
+.IR MAIN .
+.TP
+.B \-o, \-\-output \fIFILE\fR
+Write the merged SBOM to
+.IR FILE
+(default:
+.IR merged_<timestamp>.<ext> ).
+.TP
+.B \-\-mode \fIflat\fR|\fIhierarchical\fR
+How
+.IR INCOMING 's
+described product
+.RI ( metadata.component ,
+a wrapper node) is handled (default:
+.BR flat ).
+With
+.BR flat ,
+the wrapper node is not kept: only
+.IR INCOMING 's
+real components are merged into one flat list and the wrapper's dependency edges
+are re-parented onto
+.IR MAIN 's
+root, retaining the full graph without the wrapper. With
+.BR hierarchical ,
+the wrapper node is kept as a component and attached under
+.IR MAIN 's
+root, so
+.I INCOMING
+survives as a labelled sub-assembly.
+.TP
+.B \-\-on\-collision \fIauto\fR|\fIerror\fR
+How to handle a
+.I bom-ref
+used by both SBOMs (default:
+.BR auto ).
+Two components are the same artifact when their non-empty
+.I purl
+values are equal, otherwise when their type, name, and version match. With
+.BR auto ,
+the same artifact is deduplicated (\fIMAIN\fR's is kept) and a genuinely
+different component is renamed (\fI<ref>#merged\fR) with all edges to it
+rewritten. With
+.BR error ,
+the merge aborts on the first colliding ref that is not an exact duplicate.
 .SH EXIT STATUS
 .TP
 .B 0
@@ -335,7 +418,14 @@ change this.
 .TP
 .B 1
 A configuration error, a plugin error, a schema-validation failure, or a runtime
-error during collection, enrichment, or formatting.
+error during collection, enrichment, or formatting. For
+.BR merge :
+unreadable or invalid input, mismatched or unrecognised SBOM formats, an
+unresolved
+.I bom-ref
+collision under
+.BR "\-\-on\-collision error" ,
+or the merged document failing schema validation.
 .TP
 .B 2
 A command-line usage error (unknown or invalid option, or a missing required
@@ -366,6 +456,13 @@ Default output file when
 .B \-o
 is not given.
 .TP
+.I merged_<timestamp>.<ext>
+Default output file for
+.B merge
+when
+.B \-o
+is not given.
+.TP
 .I <output>.bsi-report.txt
 Full BSI TR-03183-2 findings, written when
 .B \-\-bsi\-tr\-compliant
@@ -391,6 +488,13 @@ Scan a Python virtualenv and run the BSI compliance check:
 .EX
 whatever2sbom \-\-system pip \-\-venv\-dir ./.venv \\
               \-\-product\-name app \-\-product\-supplier "Acme GmbH" \-\-bsi\-tr\-compliant
+.EE
+.RE
+.PP
+Merge an application SBOM into a host-OS SBOM (OS metadata kept):
+.RS 4
+.EX
+whatever2sbom merge os.cdx.json app.cdx.json \-o combined.cdx.json
 .EE
 .RE
 .SH SEE ALSO

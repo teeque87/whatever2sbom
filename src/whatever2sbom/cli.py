@@ -21,11 +21,16 @@ from pathlib import Path
 
 import whatever2sbom
 from whatever2sbom import registry
+from whatever2sbom.mergers.base import CollisionPolicy, MergeMode, SbomMergeError
 from whatever2sbom.pipeline import SbomPipeline
 from whatever2sbom.plugins import PluginError, load_plugin, parse_plugin_configs
 from whatever2sbom.util import perf
 from whatever2sbom.validators.base import ValidationError
 from whatever2sbom.validators.bsi_tr03183 import BsiTr03183Validator
+
+# Subcommand verb that selects a non-default action. Generation stays the
+# default (no verb) so existing invocations keep working unchanged.
+_MERGE_VERB = "merge"
 
 
 def _detect_system(argv: list[str] | None, systems: list[str], default: str) -> str:
@@ -238,10 +243,19 @@ def _build_parser(selected_system: str) -> argparse.ArgumentParser:
     return p
 
 
-def _default_filename(schema: str) -> str:
+def _default_filename(prefix: str, schema: str) -> str:
     ts  = datetime.now().strftime("%Y%m%d_%H%M%S")
     ext = registry.output_extension_for(schema)
-    return f"sbom_{ts}.{ext}"
+    return f"{prefix}_{ts}.{ext}"
+
+
+def _configure_logging(verbose: bool) -> None:
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(_LevelFormatter())
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        handlers=[handler],
+    )
 
 
 # Strip the per-component reference (e.g. "components[pkg:deb/...]") so that
@@ -266,19 +280,14 @@ class _LevelFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def main(argv: list[str] | None = None) -> None:
+def _run_generate(argv: list[str] | None = None) -> None:
     systems = registry.system_names()
     default_system = systems[0] if systems else "dpkg"
     parser = _build_parser(_detect_system(argv, systems, default_system))
     args = parser.parse_args(argv)
     perf.enabled = args.performance_metrics
 
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(_LevelFormatter())
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        handlers=[handler],
-    )
+    _configure_logging(args.verbose)
 
     # resolve pipeline components
     try:
@@ -360,7 +369,7 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(1)
 
     # write output
-    output = args.output or _default_filename(args.schema)
+    output = args.output or _default_filename("sbom", args.schema)
     with perf.timed("write-output"):
         Path(output).write_text(
             json.dumps(bom, indent=2, ensure_ascii=False),
@@ -400,6 +409,160 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.performance_metrics:
         perf.report()
+
+
+# merge subcommand
+
+def _build_merge_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog=f"{whatever2sbom.__title__} {_MERGE_VERB}",
+        description=(
+            "Merge two SBOMs into one.\n\n"
+            "MAIN keeps all of its metadata (serial number, described product, "
+            "tools, …). INCOMING's components are flattened into MAIN with their "
+            "dependency relationships preserved, and INCOMING's described product "
+            "is attached under MAIN's root. The SBOM format is auto-detected from "
+            "the documents, and the merged result is always schema-validated "
+            "before it is written."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("main", metavar="MAIN", help="Base SBOM whose metadata is retained")
+    p.add_argument(
+        "incoming",
+        metavar="INCOMING",
+        help="SBOM whose components are flattened into MAIN",
+    )
+    p.add_argument(
+        "-o", "--output",
+        metavar="FILE",
+        help="Write merged SBOM to FILE  (default: merged_<timestamp>.<ext>)",
+    )
+    p.add_argument(
+        "--mode",
+        choices=[mode.value for mode in MergeMode],
+        default=MergeMode.FLAT.value,
+        help=(
+            "How INCOMING's described product is handled: 'flat' (default) "
+            "drops the product wrapper and merges its components into one flat "
+            "list, re-parenting its dependencies onto MAIN's root; "
+            "'hierarchical' keeps the product as a node attached under MAIN's "
+            "root so everything hangs under it as a sub-assembly."
+        ),
+    )
+    p.add_argument(
+        "--on-collision",
+        choices=[policy.value for policy in CollisionPolicy],
+        default=CollisionPolicy.AUTO.value,
+        dest="on_collision",
+        help=(
+            "What to do when both SBOMs use the same bom-ref: 'auto' (default) "
+            "deduplicates identical components and renames genuinely different "
+            "ones; 'error' aborts instead."
+        ),
+    )
+    p.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable debug-level logging",
+    )
+    return p
+
+
+def _load_sbom(path: str) -> dict:
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _run_merge(argv: list[str]) -> None:
+    args = _build_merge_parser().parse_args(argv)
+    _configure_logging(args.verbose)
+
+    try:
+        main_doc     = _load_sbom(args.main)
+        incoming_doc = _load_sbom(args.incoming)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Error reading input: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    # Detect from MAIN, then require INCOMING to be the same family. Merging
+    # across formats (e.g. CycloneDX into SPDX) is not meaningful.
+    try:
+        merger_cls = registry.detect_merger(main_doc)
+    except ValueError as exc:
+        print(f"Error: {args.main}: {exc}", file=sys.stderr)
+        sys.exit(1)
+    if not merger_cls.detect(incoming_doc):
+        print(
+            f"Error: {args.incoming} is not the same format as {args.main} "
+            f"({merger_cls.schema_name}); cannot merge across formats",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    merger = merger_cls(
+        policy=CollisionPolicy(args.on_collision),
+        mode=MergeMode(args.mode),
+    )
+    try:
+        with perf.timed(f"merge:{merger.name}"):
+            result = merger.merge(main_doc, incoming_doc)
+    except SbomMergeError as exc:
+        print(f"Merge failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    schema       = merger_cls.schema_name
+    spec_version = merger_cls.spec_version_of(result.document)
+    try:
+        validator = registry.get_validator(schema, spec_version)
+    except ValueError as exc:
+        print(f"Configuration error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    with perf.timed(f"validate:{validator.name}"):
+        errors = validator.validate(result.document)
+    if errors:
+        print(
+            f"Merged SBOM failed schema validation ({len(errors)} error(s)):",
+            file=sys.stderr,
+        )
+        for err in errors:
+            print(f"  {err}", file=sys.stderr)
+        sys.exit(1)
+
+    output = args.output or _default_filename("merged", schema)
+    Path(output).write_text(
+        json.dumps(result.document, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    _print_merge_summary(output, schema, spec_version, MergeMode(args.mode), result.report)
+
+
+def _print_merge_summary(
+    output: str, schema: str, spec_version: str, mode: MergeMode, report
+) -> None:
+    print(f"Merged SBOM written -> {output}")
+    print(f"  schema             : {schema} {spec_version}")
+    print(f"  mode               : {mode.value}")
+    if report.incoming_root_ref:
+        verb = "attached product" if mode is MergeMode.HIERARCHICAL else "flattened product"
+        print(f"  {verb:<17}: {report.incoming_root_ref}")
+    print(f"  components added    : {report.components_added}")
+    print(f"  components deduped  : {report.components_deduplicated}")
+    print(f"  dependency edges    : +{report.dependency_edges_added}")
+    if report.renamed_refs:
+        print(f"  refs renamed        : {len(report.renamed_refs)} (bom-ref collisions)")
+        for old, new in report.renamed_refs:
+            print(f"      {old} -> {new}")
+
+
+def main(argv: list[str] | None = None) -> None:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == _MERGE_VERB:
+        _run_merge(argv[1:])
+        return
+    _run_generate(argv)
 
 
 if __name__ == "__main__":

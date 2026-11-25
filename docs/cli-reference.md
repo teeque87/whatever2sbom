@@ -1,15 +1,23 @@
 # CLI reference
 
 ```
+# generate (default — no verb):
 whatever2sbom [--system SYSTEM] [--schema FORMAT] [--spec-version VERSION]
               [-o FILE] [-v] [--performance-metrics] [--bsi-tr-compliant]
               --product-supplier NAME [product metadata options]
               [--plugin NAME ...] [--plugin-config NAME:KEY=VALUE ...]
               [--plugin-config-file FILE]
               [system-specific options]
+
+# merge two SBOMs into one:
+whatever2sbom merge MAIN INCOMING [-o FILE] [--mode flat|hierarchical]
+                    [--on-collision auto|error] [-v]
 ```
 
-`--product-supplier` is the only required option; everything else has a sensible default.
+Generation is the default action, so it takes **no verb** — the command above with no
+leading sub-command generates an SBOM exactly as before. The only other action is
+[`merge`](#merge), which does take a verb. For generation, `--product-supplier` is the only
+required option; everything else has a sensible default.
 
 ## Global options
 
@@ -118,9 +126,64 @@ resolution details.
 | `--venv-dir PATH` | Path to the virtualenv to scan (default: auto-detect a directory containing `pyvenv.cfg` under `--project-dir`). Must contain `pyvenv.cfg`. `$VIRTUAL_ENV` is not consulted. |
 | `--project-dir PATH` | Project root to search for a virtualenv when `--venv-dir` is not given (default: current directory). |
 
+## `merge`
+
+```
+whatever2sbom merge MAIN INCOMING [-o FILE] [--mode flat|hierarchical]
+                    [--on-collision auto|error] [-v]
+```
+
+Merge two SBOMs into one. `MAIN` keeps **all** of its own metadata (serial number, the
+described product in `metadata.component`, tools, authors, …). `INCOMING`'s components are
+merged into `MAIN`'s component list with their dependency relationships preserved.
+
+The SBOM format is **auto-detected** from the documents themselves (e.g. CycloneDX via
+`bomFormat`), so the same command works across schemas/versions — both inputs must be the
+same format. The merged result is **always schema-validated** before it is written, just
+like generation.
+
+| Argument / option | Default | Description |
+|---|---|---|
+| `MAIN` | — | Base SBOM whose metadata is retained. |
+| `INCOMING` | — | SBOM whose components are merged into `MAIN`. |
+| `-o`, `--output FILE` | `merged_<timestamp>.<ext>` | Output file path (extension chosen by the detected schema). |
+| `--mode {flat,hierarchical}` | `flat` | How `INCOMING`'s described product is handled (see below). |
+| `--on-collision {auto,error}` | `auto` | How to handle a `bom-ref` used by **both** SBOMs (see below). |
+| `-v`, `--verbose` | off | Enable debug-level logging to stderr. |
+
+### Merge modes
+
+`INCOMING`'s `metadata.component` is a *wrapper* node describing the product that SBOM is
+about (e.g. `product:Kommbox Frontend`). `--mode` controls what happens to it:
+
+- **`flat`** (default): the wrapper node is **not** kept as a component. Only `INCOMING`'s
+  real components are merged into one flat list, and the wrapper's own dependency edges are
+  **re-parented onto `MAIN`'s root** — so `MAIN`'s root ends up directly depending on what the
+  wrapper depended on, and the full dependency graph is retained *without* the wrapper node.
+- **`hierarchical`**: the wrapper node **is** kept as a component and attached under `MAIN`'s
+  root, so `INCOMING` survives as a labelled sub-assembly with everything hanging under it.
+
+In both modes `INCOMING`'s component-to-component dependency edges are preserved verbatim
+(subject only to collision renames below).
+
+### Collision handling
+
+A collision is when both SBOMs use the same `bom-ref`. Two components are considered the
+**same artifact** when they have equal non-empty `purl`s, otherwise when their
+`(type, name, version)` match.
+
+- **`auto`** (default): if the colliding components are the same artifact, the incoming copy
+  is **deduplicated** (`MAIN`'s is kept) — edges still resolve because the ref is unchanged.
+  If they are genuinely different, the incoming one is **renamed** (`<ref>#merged`) and every
+  dependency and composition edge referring to it is rewritten to the new ref.
+- **`error`**: abort on the first colliding ref that is not an exact duplicate.
+
+The summary printed after a merge reports how many components were added, how many were
+deduplicated, how many dependency edges were added, and any renames that occurred.
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | SBOM written successfully (a non-empty `--bsi-tr-compliant` report does **not** change this). |
-| `1` | Configuration error (e.g. unknown `--schema`/`--spec-version` combination), a plugin error (not found, bad config, or a failure while running), schema validation failure, or a runtime error during collection/enrichment/formatting. |
+| `1` | Configuration error (e.g. unknown `--schema`/`--spec-version` combination), a plugin error (not found, bad config, or a failure while running), schema validation failure, or a runtime error during collection/enrichment/formatting. For `merge`: unreadable/invalid input, mismatched or unrecognised SBOM formats, an unresolved `bom-ref` collision under `--on-collision error`, or the merged document failing schema validation. |

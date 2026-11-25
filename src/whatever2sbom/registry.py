@@ -26,6 +26,7 @@ from __future__ import annotations
 import inspect
 
 from whatever2sbom.formatters.base import Formatter
+from whatever2sbom.mergers.base import Merger
 from whatever2sbom.systems.base import SystemPlugin
 from whatever2sbom.validators.base import Validator
 
@@ -34,6 +35,9 @@ from whatever2sbom.validators.base import Validator
 _SYSTEMS: dict[str, SystemPlugin] = {}
 _FORMATTERS: dict[tuple[str, str], type[Formatter]] = {}
 _VALIDATORS: dict[tuple[str, str], type[Validator]] = {}
+# Mergers are schema-family-wide (not version-keyed) and detected from the
+# document shape, so they live in an ordered list, not a dict.
+_MERGERS: list[type[Merger]] = []
 
 
 # registration helpers
@@ -48,6 +52,10 @@ def register_formatter(schema: str, version: str, cls: type[Formatter]) -> None:
 
 def register_validator(schema: str, version: str, cls: type[Validator]) -> None:
     _VALIDATORS[(schema.lower(), version)] = cls
+
+
+def register_merger(cls: type[Merger]) -> None:
+    _MERGERS.append(cls)
 
 
 # lookup helpers
@@ -91,6 +99,21 @@ def get_validator(schema: str, version: str) -> Validator:
     return _VALIDATORS[key]()
 
 
+def detect_merger(document: dict) -> type[Merger]:
+    """Return the merger class that recognises `document` (by its shape).
+
+    Raises ValueError if no registered merger recognises it, so an unknown
+    SBOM format fails loudly rather than being merged by the wrong strategy.
+    """
+    for cls in _MERGERS:
+        if cls.detect(document):
+            return cls
+    raise ValueError(
+        "unrecognised SBOM format; no merger can handle this document "
+        f"(supported: {', '.join(merger_names()) or 'none'})"
+    )
+
+
 # introspection helpers (used by cli.py to build dynamic choices)
 
 def system_names() -> list[str]:
@@ -99,6 +122,10 @@ def system_names() -> list[str]:
 
 def schema_names() -> list[str]:
     return sorted({s for s, _ in _FORMATTERS})
+
+
+def merger_names() -> list[str]:
+    return sorted({cls.schema_name for cls in _MERGERS})
 
 
 def spec_versions_for(schema: str) -> list[str]:
@@ -135,6 +162,7 @@ def output_extension_for(schema: str) -> str:
 # the single source of truth for its own identity.
 
 from whatever2sbom.formatters.cyclonedx16 import CycloneDXFormatter          # noqa: E402
+from whatever2sbom.mergers.cyclonedx import CycloneDXMerger                  # noqa: E402
 from whatever2sbom.systems.dpkg import DpkgSystem                            # noqa: E402
 from whatever2sbom.systems.npm import NpmSystem                              # noqa: E402
 from whatever2sbom.systems.pip import PipSystem                              # noqa: E402
@@ -145,3 +173,4 @@ register_system(NpmSystem())
 register_system(PipSystem())
 register_formatter(CycloneDXFormatter.schema_name, CycloneDXFormatter.spec_version, CycloneDXFormatter)
 register_validator(CycloneDXSchemaValidator.schema_name, CycloneDXSchemaValidator.spec_version, CycloneDXSchemaValidator)
+register_merger(CycloneDXMerger)

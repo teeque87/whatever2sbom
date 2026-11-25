@@ -52,6 +52,10 @@ is the single source of truth for what's available:
   `("cyclonedx", "1.6")`. Selected via `--schema`/`--spec-version`.
 - **Validators** (`register_validator`) — keyed the same way as formatters, and run alongside the
   matching formatter.
+- **Mergers** (`register_merger`) — one per schema *family* (not version-keyed), used by the
+  [`merge`](cli-reference.md#merge) command. Unlike the others these aren't selected by a flag:
+  `detect_merger` picks one by inspecting the document's shape (e.g. CycloneDX via `bomFormat`),
+  so the same command merges whatever schema it's handed.
 
 `cli.py` builds its `argparse` choices (`--system`, `--schema`, available `--spec-version`s,
 default file extension, …) entirely from what's registered — nothing is hardcoded. Registering a
@@ -115,6 +119,7 @@ else (e.g. `("npm:deprecated", "use foo instead")`) — formatters emit these as
 | Enricher | `enrichers/base.py::Enricher` | `enrichers/apt_cache.py`, `enrichers/copyright.py` |
 | Formatter | `formatters/base.py::Formatter` | `formatters/cyclonedx16.py::CycloneDXFormatter` |
 | Validator | `validators/base.py::Validator` | `validators/jsonschema_validator.py::CycloneDXSchemaValidator`, `validators/bsi_tr03183.py::BsiTr03183Validator` |
+| Merger | `mergers/base.py::Merger` | `mergers/cyclonedx.py::CycloneDXMerger` |
 | Plugin | `plugins/base.py` (`apply(bom, config)` contract) | `plugins/builtin/patch-purl.py` |
 
 Continue to [Extending whatever2sbom](extending.md) for step-by-step guides and code examples for

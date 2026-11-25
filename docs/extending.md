@@ -284,13 +284,49 @@ register_validator("cyclonedx", "1.7", CycloneDXSchemaValidator17)
 `--spec-version 1.7` now appears automatically in `--help` (`spec_versions_for("cyclonedx")` reads
 the registry), alongside the existing `1.6`.
 
+## Teaching `merge` a new SBOM format
+
+The [`merge`](cli-reference.md#merge) command is schema-agnostic: it auto-detects the format
+from the documents instead of a flag. To support a new family (e.g. SPDX), implement a
+[`Merger`](https://github.com/teeque87/whatever2sbom/blob/main/src/whatever2sbom/mergers/base.py)
+and register it:
+
+```python
+class SpdxMerger(Merger):
+    schema_name = "spdx"
+
+    @property
+    def name(self) -> str:
+        return "spdx-merge"
+
+    @classmethod
+    def detect(cls, document: dict) -> bool:
+        return "spdxVersion" in document          # recognise by shape
+
+    @classmethod
+    def spec_version_of(cls, document: dict) -> str:
+        return document["spdxVersion"].removeprefix("SPDX-")
+
+    def merge(self, main: dict, incoming: dict) -> MergeResult:
+        ...   # keep main's metadata; flatten incoming, preserving relationships
+```
+
+```python
+register_merger(SpdxMerger)
+```
+
+`detect_merger` tries each registered merger's `detect` in registration order, so a new format
+is picked up with no CLI change. `schema_name` + `spec_version_of` are used to look up the
+validator that checks the merged document, so register a matching validator for that
+`(schema, spec_version)` too.
+
 ## Checklist
 
 Whatever you're adding, the registry is the only place new pieces need to be wired in —
 everything else (`--help` choices, defaults, output extensions) is derived from it:
 
-- [ ] Implement the base class (`Collector`, `Enricher`, `SystemPlugin`, `Formatter`, or
-      `Validator`) in the matching package.
+- [ ] Implement the base class (`Collector`, `Enricher`, `SystemPlugin`, `Formatter`,
+      `Validator`, or `Merger`) in the matching package.
 - [ ] Register it at the bottom of `registry.py`.
 - [ ] Bundle any reference data (schemas, license lists, …) under `src/whatever2sbom/schema/` and
       list it in `pyproject.toml`'s `package-data` — runtime stays offline, no exceptions.

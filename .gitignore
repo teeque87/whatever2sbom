@@ -221,3 +221,6 @@ sample-*.json
 sample-*.cdx.json
 test.cdx.json
 *.bsi-report.txt
+
+# Local scratch directory (sample SBOMs, merge outputs, etc.)
+tmp/
