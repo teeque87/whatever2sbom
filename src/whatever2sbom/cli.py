@@ -61,7 +61,11 @@ def _build_parser(selected_system: str) -> argparse.ArgumentParser:
         prog=whatever2sbom.__title__,
         description=(
             "Generate a validated SBOM for whatever you throw at it.\n\n"
-            "Validation against the chosen schema is always performed."
+            "Validation against the chosen schema is always performed.\n\n"
+            "This (generation) is the default action and takes no verb. To merge "
+            f"two existing SBOMs instead, use the '{_MERGE_VERB}' command:\n"
+            f"    {whatever2sbom.__title__} {_MERGE_VERB} MAIN INCOMING [-o FILE]\n"
+            f"Run `{whatever2sbom.__title__} {_MERGE_VERB} --help` for its options."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

@@ -118,5 +118,22 @@ If anything is missing for full compliance (e.g. a component without an SPDX-exp
 license), the findings are summarized on stderr and written in full to
 `acmefw.bsi-report.txt` — the SBOM is still written either way.
 
+## Merging two SBOMs
+
+Everything above *generates* an SBOM, which is the default action and takes no verb. The one
+other action is `merge`, which combines two existing SBOMs into one — for example, folding an
+application's SBOM into the host OS SBOM:
+
+```bash
+whatever2sbom merge os.cdx.json app.cdx.json -o combined.cdx.json
+```
+
+The first argument (`MAIN`) keeps **all** of its own metadata; the second (`INCOMING`) has its
+components merged in with their dependency relationships preserved. The SBOM format is
+auto-detected, and the merged result is schema-validated before it is written, just like
+generation. Use `--mode hierarchical` to keep `INCOMING`'s described product as a labelled
+sub-assembly instead of flattening it. See the [CLI reference](cli-reference.md#merge) for the
+merge modes and collision handling.
+
 See [CLI reference](cli-reference.md) for every available option and
 [Validation](validation.md) for what `--bsi-tr-compliant` checks and why it's advisory.

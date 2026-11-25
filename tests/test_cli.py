@@ -17,6 +17,8 @@ def test_help_shows_only_default_system(capsys) -> None:
     assert "npm system options" not in out
     assert "pip system options" not in out
     assert "other systems: npm, pip" in out
+    # the merge command is advertised in the top-level help
+    assert "merge" in out
 
 
 def test_help_shows_only_selected_system(capsys) -> None:

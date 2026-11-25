@@ -26,6 +26,9 @@ compliance.
   names and versions.
 - **Validates before writing.** Every run is checked against the bundled CycloneDX schema. There is
   no "trust me" mode; a schema failure is fatal and nothing is written.
+- **Merges SBOMs.** A `merge` command combines two existing SBOMs into one — keeping the first's
+  metadata and merging the second's components in (flat by default, or as a labelled sub-assembly),
+  with the format auto-detected and the result schema-validated like any other run.
 - **Runs offline.** All schemas and reference data (CycloneDX, the SPDX license list and
   expressions) ship with the tool. No network access at runtime, by design.
 - **Checks compliance (experimental).** An optional pass reports which BSI TR-03183-2 data fields

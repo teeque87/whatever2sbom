@@ -63,10 +63,18 @@ whatever2sbom --product-supplier "Acme GmbH"
 This writes `sbom_<timestamp>.cdx.json` in the current directory and prints a short summary
 (component count, hash and license coverage) to stdout.
 
+Generating is the default action, so it takes no verb. The one other action is `merge`, which
+combines two existing SBOMs into one — keeping the first's metadata and merging the second's
+components in:
+
+```bash
+whatever2sbom merge system.cdx.json app.cdx.json -o combined.cdx.json
+```
+
 ## Where to go next
 
 - [Getting started](getting-started.md) — installation and a first scan
-- [CLI reference](cli-reference.md) — all flags and product metadata options
+- [CLI reference](cli-reference.md) — all flags, the `merge` command, and product metadata options
 - [Systems](systems/index.md) — what whatever2sbom can scan (`dpkg`, `npm`, `pip`)
 - [Schemas](schemas.md) — the output formats it can emit (CycloneDX)
 - [Output format](output.md) — what ends up in the generated SBOM
